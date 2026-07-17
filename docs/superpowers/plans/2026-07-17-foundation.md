@@ -1342,6 +1342,410 @@ git commit -m "chore: link remote Supabase project"
 
 ---
 
+### Task 8: Auth (sign-up/sign-in) + Playwright E2E onboarding tests
+
+**Files:**
+- Create: `src/features/auth/api.ts`
+- Create: `src/features/auth/__tests__/api.test.ts`
+- Modify: `src/i18n/locales/he.json`, `src/i18n/locales/en.json` (add `auth.*` keys)
+- Modify: `src/app/index.tsx` (gate the create/join buttons behind a session; show a sign-up/sign-in form when there is none)
+- Create: `playwright.config.ts`
+- Create: `e2e/onboarding.spec.ts`
+
+**Interfaces:**
+- Consumes: `supabase` client from `src/lib/supabase.ts` (Task 6); `createHouse`/`joinHouse` from `src/features/onboarding/api.ts` (Task 6, unchanged); the two onboarding screens and their existing `testID`s (`house-name-input`, `admin-name-input`, `create-house-submit`, `invite-code-input`, `join-name-input`, `join-house-submit`, `join-house-error`) from Task 6.
+- Produces: `signUp(email, password)` and `signIn(email, password)` from `src/features/auth/api.ts`, each throwing an `Error` with the Supabase Auth error message on failure. `src/app/index.tsx` gains `testID`s `auth-email-input`, `auth-password-input`, `auth-submit`, `auth-error`, `auth-switch-mode`, and keeps its existing `welcome-create-house`/`welcome-join-house` `testID`s (now only rendered once a session exists).
+
+**Why this task exists:** `create-house` and `join-house` (Task 5) require a real user session — they resolve the caller via `auth.getUser()` on the forwarded `Authorization` header. Task 5's Deno tests call `auth.signUp()`/`signInWithPassword()` internally to get that session, but no equivalent UI was ever built into the app itself, so the onboarding screens built in Task 6 are unreachable end-to-end by an actual user. This task closes that gap and, in the same pass, proves the whole flow works with a real browser via Playwright — written TDD-style: the E2E spec is written and run first (expected to fail, since the auth UI doesn't exist yet), then the auth screen is implemented to make it pass.
+
+Local Supabase auth does not require email confirmation in this project's config (`enable_signup = true`, no confirmation step) — Task 5's Deno tests already proved `signUp` immediately followed by `signInWithPassword` yields a usable session locally.
+
+- [ ] **Step 1: Install Playwright**
+
+```bash
+npm install --save-dev @playwright/test
+npx playwright install chromium
+```
+
+- [ ] **Step 2: Write the Playwright config**
+
+`playwright.config.ts`:
+
+```ts
+import { defineConfig, devices } from '@playwright/test';
+
+export default defineConfig({
+  testDir: './e2e',
+  fullyParallel: false,
+  retries: 0,
+  reporter: 'list',
+  use: {
+    baseURL: 'http://localhost:8081',
+    trace: 'retain-on-failure',
+  },
+  webServer: {
+    command: 'npx expo start --web --port 8081',
+    url: 'http://localhost:8081',
+    reuseExistingServer: !process.env.CI,
+    timeout: 120_000,
+  },
+  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+});
+```
+
+- [ ] **Step 3: Write the E2E spec (RED — this will fail, the auth UI doesn't exist yet)**
+
+`e2e/onboarding.spec.ts`:
+
+```ts
+import { test, expect } from '@playwright/test';
+import { createClient } from '@supabase/supabase-js';
+
+const SUPABASE_URL = 'http://127.0.0.1:54321';
+const SERVICE_ROLE_KEY =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU';
+
+const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { db: { schema: 'bayit_shave' } });
+
+function uniqueEmail(prefix: string): string {
+  return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 10000)}@example.com`;
+}
+
+async function signUpThroughUI(page: import('@playwright/test').Page, email: string) {
+  await page.goto('/');
+  await expect(page.getByTestId('auth-email-input')).toBeVisible();
+  await page.getByTestId('auth-email-input').fill(email);
+  await page.getByTestId('auth-password-input').fill('Test1234!');
+  await page.getByTestId('auth-submit').click();
+}
+
+test.describe('onboarding', () => {
+  test('sign up, then create a house', async ({ page }) => {
+    await signUpThroughUI(page, uniqueEmail('create'));
+
+    await expect(page.getByTestId('welcome-create-house')).toBeVisible({ timeout: 10_000 });
+    await page.getByTestId('welcome-create-house').click();
+
+    await expect(page).toHaveURL(/onboarding\/create-house/);
+    await page.getByTestId('house-name-input').fill('Playwright Test House');
+    await page.getByTestId('admin-name-input').fill('Playwright Admin');
+    await page.getByTestId('create-house-submit').click();
+
+    await expect(page).toHaveURL('http://localhost:8081/');
+
+    const { data: house } = await admin
+      .from('houses')
+      .select('id, name, invite_code, admin_id')
+      .eq('name', 'Playwright Test House')
+      .single();
+    expect(house).toBeTruthy();
+    expect(house!.admin_id).toBeTruthy();
+  });
+
+  test('sign up, then join a house with a valid invite code', async ({ page }) => {
+    const { data: house } = await admin
+      .from('houses')
+      .insert({ name: 'Seeded Join House', invite_code: 'PWJOIN' })
+      .select()
+      .single();
+
+    await signUpThroughUI(page, uniqueEmail('join'));
+
+    await expect(page.getByTestId('welcome-join-house')).toBeVisible({ timeout: 10_000 });
+    await page.getByTestId('welcome-join-house').click();
+
+    await expect(page).toHaveURL(/onboarding\/join-house/);
+    await page.getByTestId('invite-code-input').fill(house!.invite_code);
+    await page.getByTestId('join-name-input').fill('Playwright Joiner');
+    await page.getByTestId('join-house-submit').click();
+
+    await expect(page).toHaveURL('http://localhost:8081/');
+
+    const { data: member } = await admin
+      .from('members')
+      .select('role, house_id')
+      .eq('house_id', house!.id)
+      .eq('name', 'Playwright Joiner')
+      .maybeSingle();
+    expect(member?.role).toBe('member');
+  });
+
+  test('join house: invalid invite code shows an error', async ({ page }) => {
+    await signUpThroughUI(page, uniqueEmail('badcode'));
+
+    await expect(page.getByTestId('welcome-join-house')).toBeVisible({ timeout: 10_000 });
+    await page.getByTestId('welcome-join-house').click();
+
+    await page.getByTestId('invite-code-input').fill('NOPE99');
+    await page.getByTestId('join-name-input').fill('Nobody');
+    await page.getByTestId('join-house-submit').click();
+
+    await expect(page.getByTestId('join-house-error')).toBeVisible();
+  });
+});
+```
+
+- [ ] **Step 4: Run the E2E suite to confirm RED**
+
+Ensure the local stack is up (`npx supabase status`; start it if not) and `npx supabase functions serve` is running in the background. Then:
+
+```bash
+npx playwright test
+```
+
+Expected: FAIL — the first test times out waiting for `auth-email-input`, because `src/app/index.tsx` doesn't render any auth form yet. This confirms the E2E spec actually exercises the missing feature rather than trivially passing.
+
+- [ ] **Step 5: Write the failing Jest test for the auth API module**
+
+`src/features/auth/__tests__/api.test.ts`:
+
+```ts
+import { signUp, signIn } from '../api';
+import { supabase } from '../../../lib/supabase';
+
+jest.mock('../../../lib/supabase', () => ({
+  supabase: { auth: { signUp: jest.fn(), signInWithPassword: jest.fn() } },
+}));
+
+describe('signUp', () => {
+  it('returns the session data on success', async () => {
+    (supabase.auth.signUp as jest.Mock).mockResolvedValue({
+      data: { user: { id: 'u1' }, session: { access_token: 'tok' } },
+      error: null,
+    });
+    const result = await signUp('a@example.com', 'Test1234!');
+    expect(supabase.auth.signUp).toHaveBeenCalledWith({ email: 'a@example.com', password: 'Test1234!' });
+    expect(result.session?.access_token).toBe('tok');
+  });
+
+  it('throws the Supabase error message on failure', async () => {
+    (supabase.auth.signUp as jest.Mock).mockResolvedValue({
+      data: { user: null, session: null },
+      error: { message: 'Password should be at least 6 characters' },
+    });
+    await expect(signUp('a@example.com', '123')).rejects.toThrow('Password should be at least 6 characters');
+  });
+});
+
+describe('signIn', () => {
+  it('returns the session data on success', async () => {
+    (supabase.auth.signInWithPassword as jest.Mock).mockResolvedValue({
+      data: { user: { id: 'u1' }, session: { access_token: 'tok2' } },
+      error: null,
+    });
+    const result = await signIn('a@example.com', 'Test1234!');
+    expect(supabase.auth.signInWithPassword).toHaveBeenCalledWith({ email: 'a@example.com', password: 'Test1234!' });
+    expect(result.session?.access_token).toBe('tok2');
+  });
+
+  it('throws the Supabase error message on failure', async () => {
+    (supabase.auth.signInWithPassword as jest.Mock).mockResolvedValue({
+      data: { user: null, session: null },
+      error: { message: 'Invalid login credentials' },
+    });
+    await expect(signIn('a@example.com', 'wrong')).rejects.toThrow('Invalid login credentials');
+  });
+});
+```
+
+Run: `npm test -- src/features/auth/__tests__/api.test.ts`
+Expected: FAIL with "Cannot find module '../api'"
+
+- [ ] **Step 6: Implement the auth API module**
+
+`src/features/auth/api.ts`:
+
+```ts
+import { supabase } from '../../lib/supabase';
+
+export async function signUp(email: string, password: string) {
+  const { data, error } = await supabase.auth.signUp({ email, password });
+  if (error) {
+    throw new Error(error.message);
+  }
+  return data;
+}
+
+export async function signIn(email: string, password: string) {
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) {
+    throw new Error(error.message);
+  }
+  return data;
+}
+```
+
+Run: `npm test -- src/features/auth/__tests__/api.test.ts`
+Expected: PASS, 4 tests.
+
+- [ ] **Step 7: Add the `auth.*` translation keys**
+
+Add to `src/i18n/locales/he.json` (inside the top-level object, alongside the existing `onboarding` key):
+
+```json
+"auth": {
+  "emailLabel": "אימייל",
+  "passwordLabel": "סיסמה",
+  "signUp": "הרשמה",
+  "signIn": "התחברות",
+  "switchToSignIn": "כבר יש לך חשבון? התחבר/י",
+  "switchToSignUp": "אין לך חשבון? הירשם/י"
+}
+```
+
+Add to `src/i18n/locales/en.json`:
+
+```json
+"auth": {
+  "emailLabel": "Email",
+  "passwordLabel": "Password",
+  "signUp": "Sign up",
+  "signIn": "Sign in",
+  "switchToSignIn": "Already have an account? Sign in",
+  "switchToSignUp": "Don't have an account? Sign up"
+}
+```
+
+- [ ] **Step 8: Gate the welcome screen behind a session**
+
+Replace `src/app/index.tsx` entirely with:
+
+```tsx
+import { useEffect, useState } from 'react';
+import { View, Text, TextInput, Pressable } from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { useRouter } from 'expo-router';
+import { supabase } from '../lib/supabase';
+import { signUp, signIn } from '../features/auth/api';
+
+export default function WelcomeScreen() {
+  const { t } = useTranslation();
+  const router = useRouter();
+  const [hasSession, setHasSession] = useState<boolean | null>(null);
+  const [mode, setMode] = useState<'signUp' | 'signIn'>('signUp');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setHasSession(!!data.session));
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      setHasSession(!!session);
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  async function handleAuthSubmit() {
+    setError(null);
+    setSubmitting(true);
+    try {
+      if (mode === 'signUp') {
+        await signUp(email, password);
+      } else {
+        await signIn(email, password);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'unknown_error');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (hasSession === null) {
+    return <View style={{ flex: 1 }} />;
+  }
+
+  if (!hasSession) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, gap: 12 }}>
+        <Text style={{ fontSize: 28, fontWeight: '800' }}>{t('onboarding.appName')}</Text>
+        <Text style={{ textAlign: 'center', opacity: 0.7 }}>{t('onboarding.tagline')}</Text>
+        <TextInput
+          value={email}
+          onChangeText={setEmail}
+          placeholder={t('auth.emailLabel')}
+          testID="auth-email-input"
+          autoCapitalize="none"
+          keyboardType="email-address"
+          style={{ width: '100%', borderWidth: 1, borderRadius: 12, padding: 12 }}
+        />
+        <TextInput
+          value={password}
+          onChangeText={setPassword}
+          placeholder={t('auth.passwordLabel')}
+          testID="auth-password-input"
+          secureTextEntry
+          style={{ width: '100%', borderWidth: 1, borderRadius: 12, padding: 12 }}
+        />
+        {error && <Text testID="auth-error">{error}</Text>}
+        <Pressable
+          onPress={handleAuthSubmit}
+          disabled={submitting || !email || !password}
+          testID="auth-submit"
+          style={{ backgroundColor: '#26332E', borderRadius: 14, padding: 14, alignItems: 'center', width: '100%' }}
+        >
+          <Text style={{ color: '#F6F1E4', fontWeight: '700' }}>
+            {t(mode === 'signUp' ? 'auth.signUp' : 'auth.signIn')}
+          </Text>
+        </Pressable>
+        <Pressable onPress={() => setMode(mode === 'signUp' ? 'signIn' : 'signUp')} testID="auth-switch-mode">
+          <Text style={{ opacity: 0.6 }}>{t(mode === 'signUp' ? 'auth.switchToSignIn' : 'auth.switchToSignUp')}</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  return (
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, gap: 16 }}>
+      <Text style={{ fontSize: 28, fontWeight: '800' }}>{t('onboarding.appName')}</Text>
+      <Text style={{ textAlign: 'center', opacity: 0.7 }}>{t('onboarding.tagline')}</Text>
+      <View style={{ width: '100%', gap: 12, marginTop: 16 }}>
+        <Pressable
+          onPress={() => router.push('/onboarding/create-house')}
+          testID="welcome-create-house"
+          style={{ backgroundColor: '#26332E', borderRadius: 14, padding: 14, alignItems: 'center' }}
+        >
+          <Text style={{ color: '#F6F1E4', fontWeight: '700' }}>{t('onboarding.createHouse')}</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => router.push('/onboarding/join-house')}
+          testID="welcome-join-house"
+          style={{ borderWidth: 1.5, borderColor: '#26332E', borderRadius: 14, padding: 14, alignItems: 'center' }}
+        >
+          <Text style={{ color: '#26332E', fontWeight: '700' }}>{t('onboarding.joinHouse')}</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+```
+
+- [ ] **Step 9: Run the E2E suite again to confirm GREEN**
+
+```bash
+npx playwright test
+```
+
+Expected: PASS, 3/3 tests. If `webServer` fails to boot Expo web, run `npx expo start --web --port 8081` manually in a separate terminal first and re-run `npx playwright test` against the already-running server (`reuseExistingServer` will pick it up).
+
+- [ ] **Step 10: Run the full Jest suite once more**
+
+```bash
+npm test
+```
+
+Expected: PASS, all suites (should now include the 4 new auth tests alongside the existing ones).
+
+- [ ] **Step 11: Commit**
+
+```bash
+git add -A
+git commit -m "feat: add email/password auth gating onboarding, add Playwright E2E suite"
+```
+
+---
+
 ## End-to-End Manual Verification
 
 This covers Tasks 1-6 against the **local** Supabase stack. Task 7's own Step 6 covers remote verification separately.

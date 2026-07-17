@@ -1,0 +1,12 @@
+{
+  "onboarding": {
+    "appName": "בית שווה",
+    "tagline": "לחלוקת משימות הוגנת בבית — כל אחד יודע מה ומתי, והניקוד דואג שיהיה שווה.",
+    "createHouse": "צור בית חדש",
+    "joinHouse": "הצטרף עם קוד הזמנה",
+    "houseNameLabel": "שם הבית",
+    "yourNameLabel": "השם שלך",
+    "inviteCodeLabel": "קוד הזמנה",
+    "submit": "המשך"
+  }
+}

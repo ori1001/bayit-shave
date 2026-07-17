@@ -1,0 +1,12 @@
+{
+  "onboarding": {
+    "appName": "Bayit Shave",
+    "tagline": "Fair chore division for the house — everyone knows what and when, and points keep it equal.",
+    "createHouse": "Create a new house",
+    "joinHouse": "Join with an invite code",
+    "houseNameLabel": "House name",
+    "yourNameLabel": "Your name",
+    "inviteCodeLabel": "Invite code",
+    "submit": "Continue"
+  }
+}

@@ -22,12 +22,12 @@
 ## File Structure
 
 ```
-/app
-  _layout.tsx                     # root layout: boots i18n, forces RTL/LTR before first render
-  /onboarding
-    create-house.tsx
-    join-house.tsx
 /src
+  /app                             # Expo Router's app dir lives under src/ in the current default template — NOT root-level /app (see Task 1 note)
+    _layout.tsx                    # root layout: boots i18n, forces RTL/LTR before first render
+    /onboarding
+      create-house.tsx
+      join-house.tsx
   /i18n
     language.ts                   # pure functions: resolveInitialLanguage, applyRTLForLanguage
     index.ts                      # side-effecting bootstrap: i18next.init + applyRTLForLanguage
@@ -62,12 +62,12 @@ jest.config.js (or jest key in package.json)
 ### Task 1: Project scaffolding
 
 **Files:**
-- Create: entire Expo project (via CLI) — `package.json`, `app.json`, `tsconfig.json`, `app/_layout.tsx`, etc.
+- Create: entire Expo project (via CLI) — `package.json`, `app.json`, `tsconfig.json`, `src/app/_layout.tsx`, etc.
 - Create: `src/lib/__tests__/smoke.test.ts`
 
 **Interfaces:**
 - Consumes: nothing (first task).
-- Produces: a working Expo + TypeScript + Expo Router project with Jest wired up via `npm test`. Later tasks assume `src/` and `app/` exist and Jest runs.
+- Produces: a working Expo + TypeScript + Expo Router project with Jest wired up via `npm test`. Later tasks assume `src/` and `src/app/` exist and Jest runs.
 
 This task is pure scaffolding — there's no application logic to red/green, so the "test" step here just proves the toolchain works, not TDD in the usual sense.
 
@@ -78,7 +78,7 @@ git init
 npx create-expo-app@latest . --template default
 ```
 
-Confirm it created `app/`, `package.json`, `tsconfig.json`, and that `app/_layout.tsx` exists (Expo Router default template ships with one).
+Confirm it created `package.json`, `tsconfig.json`, and a Router `_layout.tsx` (Expo Router default template ships with one). **Note:** the current default template places the Router's app directory at `src/app/`, not root-level `app/` — if your scaffold lands it elsewhere, update every `app/...` path in the remaining tasks of this plan to match before continuing, and say so in your report.
 
 - [ ] **Step 2: Add Jest**
 
@@ -132,7 +132,7 @@ git commit -m "chore: scaffold Expo + TypeScript + Jest project"
 - Create: `src/i18n/language.ts`
 - Create: `src/i18n/index.ts`
 - Create: `src/i18n/__tests__/language.test.ts`
-- Modify: `app/_layout.tsx`
+- Modify: `src/app/_layout.tsx`
 
 **Interfaces:**
 - Consumes: nothing new (uses the Task 1 project).
@@ -319,10 +319,10 @@ export default i18n;
 
 - [ ] **Step 7: Import the bootstrap at app entry**
 
-Modify `app/_layout.tsx` — add as the first import (side effects must run before any component renders):
+Modify `src/app/_layout.tsx` — add as the first import (side effects must run before any component renders):
 
 ```ts
-import '../src/i18n';
+import '../i18n';
 ```
 
 - [ ] **Step 8: Run the full test suite and commit**
@@ -970,8 +970,8 @@ git commit -m "feat: add create-house and join-house Edge Functions"
 - Create: `src/lib/supabase.ts`
 - Create: `src/features/onboarding/api.ts`
 - Create: `src/features/onboarding/__tests__/api.test.ts`
-- Create: `app/onboarding/create-house.tsx`
-- Create: `app/onboarding/join-house.tsx`
+- Create: `src/app/onboarding/create-house.tsx`
+- Create: `src/app/onboarding/join-house.tsx`
 
 **Interfaces:**
 - Consumes: `resolveInitialLanguage`/i18next resources from Task 2 (via `useTranslation()`); the two Edge Functions from Task 5.
@@ -1135,14 +1135,14 @@ Expected: PASS, 4 tests.
 
 - [ ] **Step 8: Build the onboarding screens**
 
-`app/onboarding/create-house.tsx`:
+`src/app/onboarding/create-house.tsx`:
 
 ```tsx
 import { useState } from 'react';
 import { View, TextInput, Button, Text } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useRouter } from 'expo-router';
-import { createHouse } from '../../src/features/onboarding/api';
+import { createHouse } from '../../features/onboarding/api';
 
 export default function CreateHouseScreen() {
   const { t } = useTranslation();
@@ -1183,14 +1183,14 @@ export default function CreateHouseScreen() {
 }
 ```
 
-`app/onboarding/join-house.tsx`:
+`src/app/onboarding/join-house.tsx`:
 
 ```tsx
 import { useState } from 'react';
 import { View, TextInput, Button, Text } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useRouter } from 'expo-router';
-import { joinHouse } from '../../src/features/onboarding/api';
+import { joinHouse } from '../../features/onboarding/api';
 
 export default function JoinHouseScreen() {
   const { t } = useTranslation();
@@ -1251,6 +1251,6 @@ After all six tasks:
 
 1. `npx supabase start` (if not already running), `npx supabase functions serve` in a separate terminal, `npx expo start` in a third.
 2. Open the app — confirm it renders right-to-left with Hebrew copy (device/simulator locale not set to English).
-3. Navigate to `app/onboarding/create-house`, submit a house name and your name — confirm no error and navigation away from the screen.
+3. Navigate to the `/onboarding/create-house` route, submit a house name and your name — confirm no error and navigation away from the screen.
 4. Check `npx supabase status` → open Studio URL → confirm a new row exists in `houses` and `members` with `role = 'admin'`, and `houses.admin_id` is set.
-5. On a second simulator/device (or after signing out), navigate to `app/onboarding/join-house`, enter the invite code from Studio — confirm a second `members` row is created with `role = 'member'` in the same house.
+5. On a second simulator/device (or after signing out), navigate to the `/onboarding/join-house` route, enter the invite code from Studio — confirm a second `members` row is created with `role = 'member'` in the same house.

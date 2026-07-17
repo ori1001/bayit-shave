@@ -14,8 +14,10 @@
 - Hebrew is the default locale (RTL), English is secondary (LTR); all UI copy comes from `i18next` translation resources, never hardcoded strings (spec: Architecture, Localization).
 - Backend is Supabase: Postgres, Supabase Auth, Row Level Security scoped per house — one house's data must never be visible to another's queries (spec: Architecture, Backend).
 - Invite-code join and house creation happen through service-role Edge Functions, not client-side RLS-gated inserts, because the caller isn't yet a house member when they call them (spec: Architecture, Backend).
-- Every table in `public` must have RLS enabled — this is a hard Supabase security requirement, not a style preference.
+- Every table in an exposed schema must have RLS enabled — this is a hard Supabase security requirement, not a style preference.
 - RLS policies use `to authenticated` plus an ownership/membership predicate — never `auth.role() = 'authenticated'` alone (Supabase security checklist).
+- **All app tables/types live in a dedicated `bayit_shave` schema, never `public`.** The target Supabase project (`nqiauqgwpygsibwxiuov`) is shared with other unrelated apps, each in its own schema — never create objects in `public` or touch any other schema. Unlike `public`, a custom schema has no default grants: every migration that creates it must also `grant usage on schema bayit_shave to authenticated, anon;` and grant table-level privileges explicitly (RLS still governs which *rows* are visible; the schema/table grants govern whether the role can reach the table at all).
+- Local development still targets Supabase's local Docker-backed CLI stack throughout Tasks 3-6 (safe to reset/break). The `bayit_shave` schema convention applies there too, so the local schema matches what gets pushed to the remote project at the end. Pushing this schema to the real remote project is a separate, final task (Task 7) — no task before it touches the remote project.
 
 ---
 
@@ -346,7 +348,7 @@ git commit -m "feat: add i18next bootstrap with Hebrew-default RTL detection"
 
 **Interfaces:**
 - Consumes: nothing from earlier tasks.
-- Produces: tables `public.houses` (`id`, `name`, `invite_code`, `admin_id`, `balance_period`, `balance_day`, `assignment_strategy`, `created_at`) and `public.members` (`id`, `house_id`, `user_id`, `name`, `role`, `weight`, `created_at`), both RLS-enabled with house-membership SELECT policies. Task 4 adds the remaining five tables against the same `members` pattern; Task 5's Edge Functions insert into these two tables using the service-role key (bypassing RLS by design).
+- Produces: tables `bayit_shave.houses` (`id`, `name`, `invite_code`, `admin_id`, `balance_period`, `balance_day`, `assignment_strategy`, `created_at`) and `bayit_shave.members` (`id`, `house_id`, `user_id`, `name`, `role`, `weight`, `created_at`), both RLS-enabled with house-membership SELECT policies. Task 4 adds the remaining five tables against the same `members` pattern; Task 5's Edge Functions insert into these two tables using the service-role key (bypassing RLS by design).
 
 - [ ] **Step 1: Install the Supabase CLI and initialize**
 
@@ -371,57 +373,70 @@ This creates an empty timestamped file under `supabase/migrations/` — edit tha
 Edit the generated `supabase/migrations/<timestamp>_houses_and_members.sql`:
 
 ```sql
-create type public.member_role as enum ('admin', 'member');
-create type public.balance_period as enum ('weekly', 'monthly');
-create type public.assignment_strategy as enum ('round_robin', 'points_based', 'manual');
+create schema if not exists bayit_shave;
+-- custom schemas get no default grants (unlike public) — every role that
+-- needs to reach this schema at all must be granted usage explicitly.
+grant usage on schema bayit_shave to authenticated, service_role;
 
-create table public.houses (
+create type bayit_shave.member_role as enum ('admin', 'member');
+create type bayit_shave.balance_period as enum ('weekly', 'monthly');
+create type bayit_shave.assignment_strategy as enum ('round_robin', 'points_based', 'manual');
+
+create table bayit_shave.houses (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   invite_code text not null unique,
   admin_id uuid,
-  balance_period public.balance_period not null default 'weekly',
+  balance_period bayit_shave.balance_period not null default 'weekly',
   balance_day smallint not null default 5 check (balance_day between 0 and 6), -- 0=Sunday..6=Saturday
-  assignment_strategy public.assignment_strategy not null default 'points_based',
+  assignment_strategy bayit_shave.assignment_strategy not null default 'points_based',
   created_at timestamptz not null default now()
 );
 
-create table public.members (
+create table bayit_shave.members (
   id uuid primary key default gen_random_uuid(),
-  house_id uuid not null references public.houses(id) on delete cascade,
+  house_id uuid not null references bayit_shave.houses(id) on delete cascade,
   user_id uuid not null references auth.users(id) on delete cascade,
   name text not null,
-  role public.member_role not null default 'member',
+  role bayit_shave.member_role not null default 'member',
   weight numeric(4,2) not null default 1.0 check (weight > 0),
   created_at timestamptz not null default now(),
   unique (house_id, user_id)
 );
 
-alter table public.houses
-  add constraint houses_admin_id_fkey foreign key (admin_id) references public.members(id) on delete set null;
+alter table bayit_shave.houses
+  add constraint houses_admin_id_fkey foreign key (admin_id) references bayit_shave.members(id) on delete set null;
 
-alter table public.houses enable row level security;
-alter table public.members enable row level security;
+alter table bayit_shave.houses enable row level security;
+alter table bayit_shave.members enable row level security;
 
-create policy "members select own house" on public.members
+create policy "members select own house" on bayit_shave.members
   for select
   to authenticated
   using (
-    house_id in (select m.house_id from public.members m where m.user_id = (select auth.uid()))
+    house_id in (select m.house_id from bayit_shave.members m where m.user_id = (select auth.uid()))
   );
 
-create policy "members update self" on public.members
+create policy "members update self" on bayit_shave.members
   for update
   to authenticated
   using (user_id = (select auth.uid()))
   with check (user_id = (select auth.uid()));
 
-create policy "houses select for members" on public.houses
+create policy "houses select for members" on bayit_shave.houses
   for select
   to authenticated
   using (
-    id in (select m.house_id from public.members m where m.user_id = (select auth.uid()))
+    id in (select m.house_id from bayit_shave.members m where m.user_id = (select auth.uid()))
   );
+
+-- table-level grants: RLS governs which rows, these grant reaching the
+-- table at all. service_role needs full CRUD since the Edge Functions
+-- (Task 5) do every write through it.
+grant select on bayit_shave.houses to authenticated;
+grant select, insert, update, delete on bayit_shave.houses to service_role;
+grant select, update on bayit_shave.members to authenticated;
+grant select, insert, update, delete on bayit_shave.members to service_role;
 ```
 
 - [ ] **Step 4: Apply the migration**
@@ -444,11 +459,11 @@ insert into auth.users (id, email) values
   ('11111111-1111-1111-1111-111111111111', 'noa@example.com'),
   ('22222222-2222-2222-2222-222222222222', 'itai@example.com');
 
-insert into public.houses (id, name, invite_code) values
+insert into bayit_shave.houses (id, name, invite_code) values
   ('aaaaaaaa-0000-0000-0000-000000000001', 'House A', 'CODEA1'),
   ('bbbbbbbb-0000-0000-0000-000000000002', 'House B', 'CODEB1');
 
-insert into public.members (house_id, user_id, name, role) values
+insert into bayit_shave.members (house_id, user_id, name, role) values
   ('aaaaaaaa-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 'Noa', 'admin'),
   ('bbbbbbbb-0000-0000-0000-000000000002', '22222222-2222-2222-2222-222222222222', 'Itai', 'admin');
 
@@ -456,19 +471,19 @@ set local role authenticated;
 set local request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
 
 select is(
-  (select count(*)::int from public.houses),
+  (select count(*)::int from bayit_shave.houses),
   1,
   'Noa sees only her own house via RLS'
 );
 
 select is(
-  (select name from public.houses limit 1),
+  (select name from bayit_shave.houses limit 1),
   'House A',
   'the house Noa sees is House A, not House B'
 );
 
 select is(
-  (select count(*)::int from public.members),
+  (select count(*)::int from bayit_shave.members),
   1,
   'Noa sees only members of her own house'
 );
@@ -500,8 +515,8 @@ git commit -m "feat: add houses/members schema with house-isolation RLS"
 - Create: `supabase/tests/mission_and_ledger_tables.test.sql`
 
 **Interfaces:**
-- Consumes: `public.houses`, `public.members` from Task 3.
-- Produces: tables `public.mission_templates`, `public.mission_instances`, `public.points_ledger`, `public.swap_requests`, `public.unavailability_requests`, matching the design spec's Data Model section field-for-field, all RLS-enabled with house-isolation SELECT policies. **Out of scope here:** the admin-approval-gate write rules (who can set `status`, `points` vs `proposed_points`, etc.) — those are enforced in the next plan (Missions & Suggestions) via Edge Functions, not raw client UPDATE policies. This task only guarantees house isolation, matching Task 3's pattern.
+- Consumes: `bayit_shave.houses`, `bayit_shave.members` from Task 3.
+- Produces: tables `bayit_shave.mission_templates`, `bayit_shave.mission_instances`, `bayit_shave.points_ledger`, `bayit_shave.swap_requests`, `bayit_shave.unavailability_requests`, matching the design spec's Data Model section field-for-field, all RLS-enabled with house-isolation SELECT policies. **Out of scope here:** the admin-approval-gate write rules (who can set `status`, `points` vs `proposed_points`, etc.) — those are enforced in the next plan (Missions & Suggestions) via Edge Functions, not raw client UPDATE policies. This task only guarantees house isolation, matching Task 3's pattern.
 
 - [ ] **Step 1: Create the migration file**
 
@@ -514,103 +529,114 @@ npx supabase migration new mission_and_ledger_tables
 Edit `supabase/migrations/<timestamp>_mission_and_ledger_tables.sql`:
 
 ```sql
-create type public.mission_category as enum
+create type bayit_shave.mission_category as enum
   ('dishes', 'clean', 'laundry', 'trash', 'shop', 'pets', 'garden', 'bath', 'other');
-create type public.mission_status as enum
+create type bayit_shave.mission_status as enum
   ('pending_approval', 'open', 'assigned', 'done', 'rejected');
-create type public.assignment_mode as enum ('auto', 'direct');
-create type public.request_status as enum ('pending', 'approved', 'rejected');
+create type bayit_shave.assignment_mode as enum ('auto', 'direct');
+create type bayit_shave.request_status as enum ('pending', 'approved', 'rejected');
 
-create table public.mission_templates (
+create table bayit_shave.mission_templates (
   id uuid primary key default gen_random_uuid(),
-  house_id uuid not null references public.houses(id) on delete cascade,
+  house_id uuid not null references bayit_shave.houses(id) on delete cascade,
   title text not null,
-  category public.mission_category not null default 'other',
+  category bayit_shave.mission_category not null default 'other',
   points integer not null check (points > 0),
   recurrence_rule text not null, -- e.g. "weekly:fri"
-  default_assignee uuid references public.members(id) on delete set null,
+  default_assignee uuid references bayit_shave.members(id) on delete set null,
   eligible_members uuid[], -- null = all house members
-  last_assigned_to uuid references public.members(id) on delete set null,
+  last_assigned_to uuid references bayit_shave.members(id) on delete set null,
   created_at timestamptz not null default now()
 );
 
-create table public.mission_instances (
+create table bayit_shave.mission_instances (
   id uuid primary key default gen_random_uuid(),
-  template_id uuid references public.mission_templates(id) on delete set null,
-  house_id uuid not null references public.houses(id) on delete cascade,
+  template_id uuid references bayit_shave.mission_templates(id) on delete set null,
+  house_id uuid not null references bayit_shave.houses(id) on delete cascade,
   title text not null,
-  category public.mission_category not null default 'other',
+  category bayit_shave.mission_category not null default 'other',
   points integer not null check (points > 0),
   proposed_points integer,
   due_date date not null,
   proposed_due_date date,
-  assigned_to uuid references public.members(id) on delete set null,
-  proposed_assigned_to uuid references public.members(id) on delete set null,
-  status public.mission_status not null default 'open',
-  created_by uuid not null references public.members(id) on delete cascade,
-  assignment_mode public.assignment_mode not null default 'auto',
-  approved_by uuid references public.members(id) on delete set null,
+  assigned_to uuid references bayit_shave.members(id) on delete set null,
+  proposed_assigned_to uuid references bayit_shave.members(id) on delete set null,
+  status bayit_shave.mission_status not null default 'open',
+  created_by uuid not null references bayit_shave.members(id) on delete cascade,
+  assignment_mode bayit_shave.assignment_mode not null default 'auto',
+  approved_by uuid references bayit_shave.members(id) on delete set null,
   approved_at timestamptz,
   created_at timestamptz not null default now()
 );
 
-create table public.points_ledger (
-  house_id uuid not null references public.houses(id) on delete cascade,
-  member_id uuid not null references public.members(id) on delete cascade,
+create table bayit_shave.points_ledger (
+  house_id uuid not null references bayit_shave.houses(id) on delete cascade,
+  member_id uuid not null references bayit_shave.members(id) on delete cascade,
   points_earned integer not null default 0,
   points_target numeric not null default 0,
   debt integer not null default 0,
   primary key (house_id, member_id)
 );
 
-create table public.swap_requests (
+create table bayit_shave.swap_requests (
   id uuid primary key default gen_random_uuid(),
-  house_id uuid not null references public.houses(id) on delete cascade,
-  mission_instance_id uuid not null references public.mission_instances(id) on delete cascade,
-  from_member uuid not null references public.members(id) on delete cascade,
-  to_member uuid not null references public.members(id) on delete cascade,
-  status public.request_status not null default 'pending',
-  approved_by uuid references public.members(id) on delete set null,
+  house_id uuid not null references bayit_shave.houses(id) on delete cascade,
+  mission_instance_id uuid not null references bayit_shave.mission_instances(id) on delete cascade,
+  from_member uuid not null references bayit_shave.members(id) on delete cascade,
+  to_member uuid not null references bayit_shave.members(id) on delete cascade,
+  status bayit_shave.request_status not null default 'pending',
+  approved_by uuid references bayit_shave.members(id) on delete set null,
   created_at timestamptz not null default now()
 );
 
-create table public.unavailability_requests (
+create table bayit_shave.unavailability_requests (
   id uuid primary key default gen_random_uuid(),
-  house_id uuid not null references public.houses(id) on delete cascade,
-  member_id uuid not null references public.members(id) on delete cascade,
+  house_id uuid not null references bayit_shave.houses(id) on delete cascade,
+  member_id uuid not null references bayit_shave.members(id) on delete cascade,
   period_start date not null,
   period_end date not null check (period_end >= period_start),
   reason text,
-  status public.request_status not null default 'pending',
-  approved_by uuid references public.members(id) on delete set null,
+  status bayit_shave.request_status not null default 'pending',
+  approved_by uuid references bayit_shave.members(id) on delete set null,
   created_at timestamptz not null default now()
 );
 
-alter table public.mission_templates enable row level security;
-alter table public.mission_instances enable row level security;
-alter table public.points_ledger enable row level security;
-alter table public.swap_requests enable row level security;
-alter table public.unavailability_requests enable row level security;
+alter table bayit_shave.mission_templates enable row level security;
+alter table bayit_shave.mission_instances enable row level security;
+alter table bayit_shave.points_ledger enable row level security;
+alter table bayit_shave.swap_requests enable row level security;
+alter table bayit_shave.unavailability_requests enable row level security;
 
-create policy "mission_templates select own house" on public.mission_templates
+create policy "mission_templates select own house" on bayit_shave.mission_templates
   for select to authenticated
-  using (house_id in (select m.house_id from public.members m where m.user_id = (select auth.uid())));
+  using (house_id in (select m.house_id from bayit_shave.members m where m.user_id = (select auth.uid())));
 
-create policy "mission_instances select own house" on public.mission_instances
+create policy "mission_instances select own house" on bayit_shave.mission_instances
   for select to authenticated
-  using (house_id in (select m.house_id from public.members m where m.user_id = (select auth.uid())));
+  using (house_id in (select m.house_id from bayit_shave.members m where m.user_id = (select auth.uid())));
 
-create policy "points_ledger select own house" on public.points_ledger
+create policy "points_ledger select own house" on bayit_shave.points_ledger
   for select to authenticated
-  using (house_id in (select m.house_id from public.members m where m.user_id = (select auth.uid())));
+  using (house_id in (select m.house_id from bayit_shave.members m where m.user_id = (select auth.uid())));
 
-create policy "swap_requests select own house" on public.swap_requests
+create policy "swap_requests select own house" on bayit_shave.swap_requests
   for select to authenticated
-  using (house_id in (select m.house_id from public.members m where m.user_id = (select auth.uid())));
+  using (house_id in (select m.house_id from bayit_shave.members m where m.user_id = (select auth.uid())));
 
-create policy "unavailability_requests select own house" on public.unavailability_requests
+create policy "unavailability_requests select own house" on bayit_shave.unavailability_requests
   for select to authenticated
-  using (house_id in (select m.house_id from public.members m where m.user_id = (select auth.uid())));
+  using (house_id in (select m.house_id from bayit_shave.members m where m.user_id = (select auth.uid())));
+
+grant select on bayit_shave.mission_templates to authenticated;
+grant select, insert, update, delete on bayit_shave.mission_templates to service_role;
+grant select on bayit_shave.mission_instances to authenticated;
+grant select, insert, update, delete on bayit_shave.mission_instances to service_role;
+grant select on bayit_shave.points_ledger to authenticated;
+grant select, insert, update, delete on bayit_shave.points_ledger to service_role;
+grant select on bayit_shave.swap_requests to authenticated;
+grant select, insert, update, delete on bayit_shave.swap_requests to service_role;
+grant select on bayit_shave.unavailability_requests to authenticated;
+grant select, insert, update, delete on bayit_shave.unavailability_requests to service_role;
 ```
 
 - [ ] **Step 3: Apply the migration**
@@ -633,15 +659,15 @@ insert into auth.users (id, email) values
   ('11111111-1111-1111-1111-111111111111', 'noa@example.com'),
   ('22222222-2222-2222-2222-222222222222', 'itai@example.com');
 
-insert into public.houses (id, name, invite_code) values
+insert into bayit_shave.houses (id, name, invite_code) values
   ('aaaaaaaa-0000-0000-0000-000000000001', 'House A', 'CODEA2'),
   ('bbbbbbbb-0000-0000-0000-000000000002', 'House B', 'CODEB2');
 
-insert into public.members (id, house_id, user_id, name, role) values
+insert into bayit_shave.members (id, house_id, user_id, name, role) values
   ('c0000000-0000-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 'Noa', 'admin'),
   ('c0000000-0000-0000-0000-000000000002', 'bbbbbbbb-0000-0000-0000-000000000002', '22222222-2222-2222-2222-222222222222', 'Itai', 'admin');
 
-insert into public.mission_instances
+insert into bayit_shave.mission_instances
   (house_id, title, category, points, due_date, created_by, status)
 values
   ('aaaaaaaa-0000-0000-0000-000000000001', 'Wash dishes', 'dishes', 15, current_date, 'c0000000-0000-0000-0000-000000000001', 'open'),
@@ -651,13 +677,13 @@ set local role authenticated;
 set local request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
 
 select is(
-  (select count(*)::int from public.mission_instances),
+  (select count(*)::int from bayit_shave.mission_instances),
   1,
   'Noa sees only her own house''s missions'
 );
 
 select is(
-  (select title from public.mission_instances limit 1),
+  (select title from bayit_shave.mission_instances limit 1),
   'Wash dishes',
   'the mission Noa sees belongs to House A'
 );
@@ -688,7 +714,7 @@ git commit -m "feat: add mission, ledger, swap, and unavailability schema with R
 - Create: `supabase/tests/functions/onboarding.test.ts`
 
 **Interfaces:**
-- Consumes: `public.houses`, `public.members` from Task 3.
+- Consumes: `bayit_shave.houses`, `bayit_shave.members` from Task 3.
 - Produces: two HTTP endpoints. Task 6's `src/features/onboarding/api.ts` calls these directly:
   - `POST /functions/v1/create-house` — body `{ house_name: string, admin_name: string }`, auth: Bearer user JWT. Returns `200 { house, member }` or `4xx/5xx { error: string }`.
   - `POST /functions/v1/join-house` — body `{ invite_code: string, name: string }`, auth: Bearer user JWT. Returns `200 { member }`, `404 { error: 'invalid_invite_code' }`, `409 { error: 'already_a_member' }`, or other `4xx/5xx { error: string }`.
@@ -727,7 +753,7 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: 'invalid_session' }), { status: 401 });
   }
 
-  const admin = createClient(supabaseUrl, serviceRoleKey);
+  const admin = createClient(supabaseUrl, serviceRoleKey, { db: { schema: 'bayit_shave' } });
 
   const { data: house, error: houseError } = await admin
     .from('houses')
@@ -811,7 +837,7 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: 'invalid_session' }), { status: 401 });
   }
 
-  const admin = createClient(supabaseUrl, serviceRoleKey);
+  const admin = createClient(supabaseUrl, serviceRoleKey, { db: { schema: 'bayit_shave' } });
 
   let house: { id: string; invite_code: string } | undefined;
   for (let attempt = 0; attempt < 5; attempt++) {
@@ -1004,7 +1030,9 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  db: { schema: 'bayit_shave' },
+});
 ```
 
 - [ ] **Step 4: Write the failing test for the onboarding API**
@@ -1245,7 +1273,78 @@ git commit -m "feat: wire Supabase client and add onboarding screens"
 
 ---
 
+### Task 7: Push the schema to the remote project
+
+**Files:**
+- Modify: `supabase/config.toml` (project ref link — this file is safe to commit, it holds no secrets)
+- Create: `.env.production.local` (repo root, gitignored — real project URL/keys, never committed)
+
+**Interfaces:**
+- Consumes: the two migrations from Tasks 3-4, already verified locally.
+- Produces: the same `bayit_shave` schema, live on the real Supabase project (`nqiauqgwpygsibwxiuov`), with Edge Functions deployed and their secrets set. No other task depends on this one — it's the deployment step, done once Tasks 1-6 are all reviewed clean locally.
+
+This task only runs after every other task in this plan is complete and reviewed — it is the one task in this plan that touches real, shared infrastructure (a Supabase project other unrelated apps also live on), so treat every command as non-reversible even where the CLI itself is idempotent.
+
+- [ ] **Step 1: Store the remote credentials locally (never commit this file)**
+
+`.env.production.local` at repo root:
+
+```
+SUPABASE_URL=https://nqiauqgwpygsibwxiuov.supabase.co
+SUPABASE_ANON_KEY=<the anon/publishable key>
+SUPABASE_SERVICE_ROLE_KEY=<the service_role key>
+SUPABASE_DB_PASSWORD=<the database password>
+```
+
+Confirm it's ignored: `git check-ignore -v .env.production.local` should print a match (it fits the `.env*.local` pattern already in `.gitignore`).
+
+- [ ] **Step 2: Link the local project to the remote one**
+
+```bash
+npx supabase link --project-ref nqiauqgwpygsibwxiuov
+```
+
+Enter the DB password from Step 1 when prompted. This only writes a project ref into `supabase/config.toml` — no schema changes yet.
+
+- [ ] **Step 3: Push the migrations**
+
+```bash
+npx supabase db push
+```
+
+Expected: both migrations from Tasks 3-4 apply in order, output confirms `bayit_shave` schema, tables, and policies created. **If this step reports any object already existing in a schema other than `bayit_shave`, stop immediately and escalate** — it means something targeted the wrong schema.
+
+- [ ] **Step 4: Expose the schema to the Data API**
+
+This is a dashboard-only setting, not scriptable via CLI: in the Supabase dashboard for this project, go to Settings → API → Data API, and add `bayit_shave` to the exposed schemas list (alongside whatever other apps' schemas are already there — do not remove any existing entries). Report back once done; this step needs the account owner and can't be automated from here.
+
+- [ ] **Step 5: Deploy the Edge Functions and their secrets**
+
+```bash
+npx supabase functions deploy create-house
+npx supabase functions deploy join-house
+```
+
+Edge Functions on the deployed project automatically receive `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` — no manual secret-setting needed for those two.
+
+- [ ] **Step 6: Verify against the real project**
+
+Using the anon key from Step 1, sign up a throwaway test user and call the deployed `create-house` function exactly as Task 5's Deno tests did (see `supabase/tests/functions/onboarding.test.ts` for the request shape), pointed at `https://nqiauqgwpygsibwxiuov.supabase.co/functions/v1` instead of `127.0.0.1`. Confirm a row appears in `bayit_shave.houses` and `bayit_shave.members` (check via the dashboard's Table Editor, filtered to the `bayit_shave` schema).
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add supabase/config.toml
+git commit -m "chore: link remote Supabase project"
+```
+
+(`.env.production.local` is gitignored and won't be included — verify with `git status` before committing that it doesn't appear.)
+
+---
+
 ## End-to-End Manual Verification
+
+This covers Tasks 1-6 against the **local** Supabase stack. Task 7's own Step 6 covers remote verification separately.
 
 After all six tasks:
 

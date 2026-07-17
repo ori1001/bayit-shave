@@ -71,6 +71,7 @@ Deno.test('create-house: admin_id is set on the house after creation', async () 
   });
   const { house, member } = await res.json();
   assertEquals(member.role, 'admin');
+  assertEquals(house.admin_id, member.id);
   assertEquals(typeof house.invite_code, 'string');
   assertEquals(house.invite_code.length, 6);
 });

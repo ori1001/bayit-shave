@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
 
   const admin = createClient(supabaseUrl, serviceRoleKey, { db: { schema: 'bayit_shave' } });
 
-  let house: { id: string; invite_code: string } | undefined;
+  let house: { id: string; invite_code: string; admin_id: string | null } | undefined;
   for (let attempt = 0; attempt < 5; attempt++) {
     const invite_code = generateInviteCode();
     const { data, error } = await admin
@@ -66,10 +66,12 @@ Deno.serve(async (req) => {
     .single();
 
   if (memberError) {
+    await admin.from('houses').delete().eq('id', house.id);
     return new Response(JSON.stringify({ error: 'admin_member_creation_failed' }), { status: 500 });
   }
 
   await admin.from('houses').update({ admin_id: member.id }).eq('id', house.id);
+  house.admin_id = member.id;
 
   return new Response(JSON.stringify({ house, member }), {
     status: 200,

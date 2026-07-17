@@ -2,8 +2,10 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 
 function generateInviteCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no ambiguous chars (no 0/O, 1/I)
+  const bytes = new Uint8Array(6);
+  crypto.getRandomValues(bytes);
   let code = '';
-  for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  for (let i = 0; i < 6; i++) code += chars[bytes[i] % chars.length];
   return code;
 }
 

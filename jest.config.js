@@ -1,4 +1,4 @@
 module.exports = {
   preset: 'jest-expo',
-  testPathIgnorePatterns: ['supabase/'],
+  testPathIgnorePatterns: ['/node_modules/', 'supabase/'],
 };

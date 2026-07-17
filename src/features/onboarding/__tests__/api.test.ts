@@ -30,8 +30,11 @@ describe('createHouse', () => {
 
   it('throws with the server error code on failure', async () => {
     (supabase.functions.invoke as jest.Mock).mockResolvedValue({
-      data: { error: 'house_creation_failed' },
-      error: { message: 'Edge Function returned a non-2xx status code' },
+      data: null,
+      error: {
+        message: 'Edge Function returned a non-2xx status code',
+        context: { json: async () => ({ error: 'house_creation_failed' }) },
+      },
     });
 
     await expect(createHouse('My House', 'Noa')).rejects.toThrow('house_creation_failed');
@@ -55,8 +58,11 @@ describe('joinHouse', () => {
 
   it('throws "invalid_invite_code" for a bad code', async () => {
     (supabase.functions.invoke as jest.Mock).mockResolvedValue({
-      data: { error: 'invalid_invite_code' },
-      error: { message: 'Edge Function returned a non-2xx status code' },
+      data: null,
+      error: {
+        message: 'Edge Function returned a non-2xx status code',
+        context: { json: async () => ({ error: 'invalid_invite_code' }) },
+      },
     });
 
     await expect(joinHouse('NOPE99', 'Ghost')).rejects.toThrow('invalid_invite_code');

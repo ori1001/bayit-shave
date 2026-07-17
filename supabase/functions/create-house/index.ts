@@ -70,7 +70,15 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: 'admin_member_creation_failed' }), { status: 500 });
   }
 
-  await admin.from('houses').update({ admin_id: member.id }).eq('id', house.id);
+  const { error: adminIdError } = await admin
+    .from('houses')
+    .update({ admin_id: member.id })
+    .eq('id', house.id);
+
+  if (adminIdError) {
+    return new Response(JSON.stringify({ error: 'admin_id_update_failed' }), { status: 500 });
+  }
+
   house.admin_id = member.id;
 
   return new Response(JSON.stringify({ house, member }), {

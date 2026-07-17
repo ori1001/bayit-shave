@@ -19,7 +19,8 @@ export async function createHouse(
     body: { house_name: houseName, admin_name: adminName },
   });
   if (error) {
-    throw new Error(data?.error ?? error.message);
+    const body = error.context ? await error.context.json().catch(() => null) : null;
+    throw new Error(body?.error ?? error.message);
   }
   return data;
 }
@@ -32,7 +33,8 @@ export async function joinHouse(
     body: { invite_code: inviteCode, name },
   });
   if (error) {
-    throw new Error(data?.error ?? error.message);
+    const body = error.context ? await error.context.json().catch(() => null) : null;
+    throw new Error(body?.error ?? error.message);
   }
   return data;
 }

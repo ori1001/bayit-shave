@@ -1863,6 +1863,317 @@ git commit -m "feat: add suggestions inbox screen"
 
 ---
 
+### Task 10: Close the direct-assign and points-edit UI gaps
+
+**Files:**
+- Modify: `src/features/missions/api.ts` (add `getHouseMembers`)
+- Modify: `src/features/missions/__tests__/api.test.ts` (add test)
+- Modify: `src/app/missions/suggest.tsx` (member picker for direct-assign)
+- Modify: `src/app/today.tsx` (inline points-edit control per mission row)
+- Modify: `src/app/index.tsx` (small robustness fix, see Step 5)
+- Modify: `supabase/functions/suggest-mission/index.ts` (small validation fix, see Step 6)
+- Modify: `src/i18n/locales/he.json`, `src/i18n/locales/en.json` (add `missions.selectMember`/`editPoints`/`save`/`cancel`)
+
+**Interfaces:**
+- Consumes: `suggestMission`, `editMissionPoints` (Task 6, already built and tested — this task only adds UI paths that call them).
+- Produces: `getHouseMembers(houseId: string): Promise<{ id: string; name: string; role: 'admin' | 'member' }[]>` in `src/features/missions/api.ts`.
+
+**Why this task exists:** the whole-branch review after Task 9 found that two capabilities named in this plan's own Goal — "pool **or direct-assign**" and an admin approving "new missions **and edit-points suggestions**" — were dead through the actual UI. `suggest.tsx`'s "Direct assign" toggle never collected a `target_member_id`, so submitting it always failed with a 400 the Edge Function correctly (but uselessly, from the user's perspective) returns. `editMissionPoints` was fully built and tested in Task 6 but called by no screen anywhere, so the suggestions inbox's `points_edit` card type could never actually appear. This task closes both gaps.
+
+- [ ] **Step 1: Add `getHouseMembers` to the missions API module**
+
+Add to `src/features/missions/api.ts` (after `getMyMembership`):
+
+```ts
+export async function getHouseMembers(
+  houseId: string
+): Promise<{ id: string; name: string; role: 'admin' | 'member' }[]> {
+  const { data, error } = await supabase.from('members').select('id, name, role').eq('house_id', houseId);
+  if (error) {
+    throw new Error(error.message);
+  }
+  return (data ?? []) as { id: string; name: string; role: 'admin' | 'member' }[];
+}
+```
+
+- [ ] **Step 2: Add a Jest test for it**
+
+Add to `src/features/missions/__tests__/api.test.ts`:
+
+```ts
+import { getHouseMembers } from '../api';
+
+describe('getHouseMembers', () => {
+  it('returns the members of a house', async () => {
+    const chain = mockSelectChain({
+      data: [
+        { id: 'mem1', name: 'Noa', role: 'admin' },
+        { id: 'mem2', name: 'Itai', role: 'member' },
+      ],
+      error: null,
+    });
+    (supabase.from as jest.Mock).mockReturnValue(chain);
+    const result = await getHouseMembers('h1');
+    expect(supabase.from).toHaveBeenCalledWith('members');
+    expect(chain.eq).toHaveBeenCalledWith('house_id', 'h1');
+    expect(result).toEqual([
+      { id: 'mem1', name: 'Noa', role: 'admin' },
+      { id: 'mem2', name: 'Itai', role: 'member' },
+    ]);
+  });
+});
+```
+
+Run: `npm test -- src/features/missions/__tests__/api.test.ts`
+Expected: PASS (adds 1 test to the existing count).
+
+- [ ] **Step 3: Add the member picker to the suggest-mission screen**
+
+In `src/app/missions/suggest.tsx`:
+
+Add to the imports:
+
+```ts
+import { useEffect, useState } from 'react';
+import { suggestMission, getHouseMembers, type MissionCategory, type AssignmentMode } from '../../features/missions/api';
+```
+
+(replacing the existing `import { useState } from 'react';` and the existing `suggestMission`/type import line — `useEffect` is now needed too.)
+
+Add new state after the existing `useState` declarations:
+
+```ts
+const [members, setMembers] = useState<{ id: string; name: string; role: 'admin' | 'member' }[]>([]);
+const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
+
+useEffect(() => {
+  if (houseId) {
+    getHouseMembers(houseId).then(setMembers);
+  }
+}, [houseId]);
+```
+
+Update `handleSubmit` to include `target_member_id` when in direct mode:
+
+```ts
+async function handleSubmit() {
+  setError(null);
+  setSubmitting(true);
+  try {
+    await suggestMission({
+      house_id: houseId,
+      category,
+      title,
+      points: Number(points),
+      due_date: dueDate,
+      assignment_mode: assignmentMode,
+      ...(assignmentMode === 'direct' ? { target_member_id: selectedMemberId! } : {}),
+    });
+    router.replace('/today');
+  } catch (e) {
+    setError(e instanceof Error ? e.message : 'unknown_error');
+  } finally {
+    setSubmitting(false);
+  }
+}
+```
+
+Add the member picker UI right after the assignment-mode toggle `View` block (after the closing `</View>` that contains `assignment-pool`/`assignment-direct`), before the `{error && ...}` line:
+
+```tsx
+{assignmentMode === 'direct' && (
+  <View style={{ gap: 8 }}>
+    <Text>{t('missions.selectMember')}</Text>
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+      {members.map((m) => (
+        <Pressable
+          key={m.id}
+          onPress={() => setSelectedMemberId(m.id)}
+          testID={`member-${m.id}`}
+          style={{
+            paddingVertical: 8,
+            paddingHorizontal: 12,
+            borderRadius: 10,
+            borderWidth: 1.5,
+            borderColor: selectedMemberId === m.id ? '#26332E' : '#ccc',
+            backgroundColor: selectedMemberId === m.id ? '#26332E' : 'transparent',
+          }}
+        >
+          <Text style={{ color: selectedMemberId === m.id ? '#F6F1E4' : '#26332E' }}>{m.name}</Text>
+        </Pressable>
+      ))}
+    </View>
+  </View>
+)}
+```
+
+Update the submit button's `disabled` condition to also require a selected member in direct mode:
+
+```tsx
+disabled={submitting || !title || !points || !dueDate || (assignmentMode === 'direct' && !selectedMemberId)}
+```
+
+- [ ] **Step 4: Add inline points-edit to the Today screen**
+
+In `src/app/today.tsx`, update the import line:
+
+```ts
+import { getMyHouseId, getMyMembership, getTodayMissions, completeMission, editMissionPoints, type Mission } from '../features/missions/api';
+```
+
+Add new state after the existing ones:
+
+```ts
+const [editingMissionId, setEditingMissionId] = useState<string | null>(null);
+const [editPointsValue, setEditPointsValue] = useState('');
+```
+
+Add these handlers after `handleComplete`:
+
+```ts
+function startEditPoints(mission: Mission) {
+  setEditingMissionId(mission.id);
+  setEditPointsValue(String(mission.points));
+}
+
+async function handleSaveEditPoints(missionId: string) {
+  await editMissionPoints(missionId, Number(editPointsValue));
+  setEditingMissionId(null);
+  await load();
+}
+```
+
+Replace the `FlatList`'s `renderItem` with:
+
+```tsx
+renderItem={({ item }) => (
+  <View style={{ gap: 6 }}>
+    <Pressable
+      onPress={() => handleComplete(item.id)}
+      testID={`mission-row-${item.id}`}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10 }}
+    >
+      <View style={{ width: 22, height: 22, borderRadius: 7, borderWidth: 2 }} />
+      <Text style={{ flex: 1, fontWeight: '700' }}>{item.title}</Text>
+      <Text>{item.points}</Text>
+      <Pressable onPress={() => startEditPoints(item)} testID={`edit-points-${item.id}`} style={{ padding: 4 }}>
+        <Text style={{ fontSize: 12, opacity: 0.6 }}>{t('missions.editPoints')}</Text>
+      </Pressable>
+    </Pressable>
+    {editingMissionId === item.id && (
+      <View style={{ flexDirection: 'row', gap: 8, paddingStart: 32 }}>
+        <TextInput
+          value={editPointsValue}
+          onChangeText={setEditPointsValue}
+          keyboardType="numeric"
+          testID={`edit-points-input-${item.id}`}
+          style={{ borderWidth: 1, borderRadius: 8, padding: 8, width: 80 }}
+        />
+        <Pressable onPress={() => handleSaveEditPoints(item.id)} testID={`edit-points-save-${item.id}`} style={{ padding: 8 }}>
+          <Text>{t('missions.save')}</Text>
+        </Pressable>
+        <Pressable onPress={() => setEditingMissionId(null)} testID={`edit-points-cancel-${item.id}`} style={{ padding: 8 }}>
+          <Text>{t('missions.cancel')}</Text>
+        </Pressable>
+      </View>
+    )}
+  </View>
+)}
+```
+
+Add `TextInput` to the existing `react-native` import line (`import { View, Text, Pressable, FlatList, TextInput } from 'react-native';`).
+
+- [ ] **Step 5: Small robustness fix — catch the redirect check's rejection**
+
+In `src/app/index.tsx`, the whole-branch review flagged an unhandled-rejection risk in the house-check effect added by the Missions & Suggestions plan's Task 7. Change:
+
+```ts
+useEffect(() => {
+  if (hasSession) {
+    getMyHouseId().then((houseId) => {
+      if (houseId) {
+        router.replace('/today');
+      }
+    });
+  }
+}, [hasSession]);
+```
+
+to:
+
+```ts
+useEffect(() => {
+  if (hasSession) {
+    getMyHouseId()
+      .then((houseId) => {
+        if (houseId) {
+          router.replace('/today');
+        }
+      })
+      .catch(() => {
+        // no-op: if the house check fails, the user just sees the create/join buttons
+      });
+  }
+}, [hasSession]);
+```
+
+- [ ] **Step 6: Small validation fix — `suggest-mission` should validate points like `edit-mission-points` does**
+
+In `supabase/functions/suggest-mission/index.ts`, add the same positivity/integer guard that `edit-mission-points` already has, right after the existing `if (!house_id || !category || !title || !points || !due_date || !assignment_mode)` check:
+
+```ts
+if (!Number.isInteger(points) || points <= 0) {
+  return new Response(JSON.stringify({ error: 'invalid_points' }), { status: 400 });
+}
+```
+
+- [ ] **Step 7: Add the new translation keys**
+
+Add to `src/i18n/locales/he.json`'s `missions` object:
+
+```json
+"selectMember": "בחר/י חבר/ה",
+"editPoints": "עריכת ניקוד",
+"save": "שמור",
+"cancel": "ביטול"
+```
+
+Add to `src/i18n/locales/en.json`'s `missions` object:
+
+```json
+"selectMember": "Select member",
+"editPoints": "Edit points",
+"save": "Save",
+"cancel": "Cancel"
+```
+
+- [ ] **Step 8: Run the full Jest suite**
+
+```bash
+npm test
+```
+
+Expected: PASS, all suites (one more test than before, from Step 2).
+
+- [ ] **Step 9: Manual end-to-end check — actually run this, with real evidence in your report**
+
+With the local stack running (`npx supabase status`; `npx expo start --web`):
+
+1. As an admin with at least one other member in the house, go to `/missions/suggest`, select "Direct assign," confirm the member picker appears and is tappable, select a member, submit — confirm it succeeds (no `target_member_id_required_for_direct` error) and the mission appears on that member's `/today`.
+2. On `/today`, tap "Edit points" on one of your own assigned missions, change the value, tap Save — confirm the row updates (for an admin's own edit, the change should apply immediately per `edit-mission-points`'s admin path; for a non-admin, it should NOT change the visible points immediately, since it becomes a `proposed_points` suggestion instead — verify whichever role you're testing as behaves per that distinction).
+3. As an admin, confirm a `points_edit` suggestion (created by a non-admin's edit in step 2) now actually appears on `/missions/suggestions`.
+
+Record actual observed output/values in your report, not just a restatement of the code.
+
+- [ ] **Step 10: Commit**
+
+```bash
+git add -A
+git commit -m "feat: add member picker for direct-assign, points-edit UI, small validation fixes"
+```
+
+---
+
 ## End-to-End Manual Verification
 
 After all nine tasks, against the **local** Supabase stack:

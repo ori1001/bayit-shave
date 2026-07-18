@@ -21,7 +21,8 @@
     "greeting": "Today",
     "noMissions": "No missions planned for today",
     "suggestMission": "Suggest a mission",
-    "suggestions": "Suggestions"
+    "suggestions": "Suggestions",
+    "balance": "House balance"
   },
   "missions": {
     "suggestTitle": "Suggest a mission",

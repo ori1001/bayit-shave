@@ -21,7 +21,8 @@
     "greeting": "היום",
     "noMissions": "אין משימות מתוכננות היום",
     "suggestMission": "הצעת משימה",
-    "suggestions": "הצעות"
+    "suggestions": "הצעות",
+    "balance": "מאזן הבית"
   },
   "missions": {
     "suggestTitle": "הצעת משימה",

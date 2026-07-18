@@ -116,6 +116,13 @@ export default function TodayScreen() {
         >
           <Text style={{ color: '#F6F1E4', fontWeight: '700' }}>{t('today.suggestMission')}</Text>
         </Pressable>
+        <Pressable
+          onPress={() => router.push({ pathname: '/balance', params: { houseId: houseId ?? '' } })}
+          testID="today-balance"
+          style={{ borderWidth: 1.5, borderColor: '#4C7A8C', borderRadius: 14, padding: 14, alignItems: 'center' }}
+        >
+          <Text style={{ color: '#4C7A8C', fontWeight: '700' }}>{t('today.balance')}</Text>
+        </Pressable>
         {isAdmin && (
           <Pressable
             onPress={() => router.push({ pathname: '/missions/suggestions', params: { houseId: houseId ?? '' } })}

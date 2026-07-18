@@ -54,6 +54,10 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: 'admin_only' }), { status: 403 });
   }
 
+  if (mission.status !== 'open' && mission.status !== 'assigned') {
+    return new Response(JSON.stringify({ error: 'mission_not_assignable' }), { status: 409 });
+  }
+
   const { data: targetMember, error: targetError } = await admin
     .from('members')
     .select('id')

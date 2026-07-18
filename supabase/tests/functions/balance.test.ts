@@ -147,3 +147,20 @@ Deno.test('assign-mission: admin manually assigns an open mission; non-admin is 
   assertEquals(assigned.status, 'assigned');
   assertEquals(assigned.assigned_to, member.id);
 });
+
+Deno.test('assign-mission: reassigning a done mission is rejected with 409', async () => {
+  const { house, adminToken, member } = await seedHouseWithStrategy('manual');
+  const mission = await seedOpenMission(house.id, adminToken, 12, 'Already done mission');
+
+  await admin.from('mission_instances').update({ status: 'done' }).eq('id', mission.id);
+
+  const res = await fetch(`${FUNCTIONS_URL}/assign-mission`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mission_instance_id: mission.id, member_id: member.id }),
+  });
+  assertEquals(res.status, 409);
+
+  const { data: unchanged } = await admin.from('mission_instances').select('status').eq('id', mission.id).single();
+  assertEquals(unchanged!.status, 'done');
+});

@@ -57,5 +57,15 @@
     "pointsEdit": "Points edit",
     "approve": "Approve",
     "reject": "Reject"
+  },
+  "balance": {
+    "title": "House Balance",
+    "earned": "Earned",
+    "target": "Target",
+    "debt": "Debt",
+    "behindBy": "Behind by",
+    "onTrack": "On track",
+    "runBalance": "Run balance",
+    "openMissions": "Open missions waiting in the pool"
   }
 }

@@ -57,5 +57,15 @@
     "pointsEdit": "שינוי ניקוד",
     "approve": "אשר",
     "reject": "דחה"
+  },
+  "balance": {
+    "title": "מאזן הבית",
+    "earned": "צבר",
+    "target": "יעד",
+    "debt": "חוב",
+    "behindBy": "מפגר ב-",
+    "onTrack": "מאוזן/ת",
+    "runBalance": "הרץ איזון",
+    "openMissions": "משימות בהמתנה במאגר"
   }
 }

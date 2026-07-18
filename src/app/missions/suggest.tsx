@@ -23,7 +23,11 @@ export default function SuggestMissionScreen() {
 
   useEffect(() => {
     if (houseId) {
-      getHouseMembers(houseId).then(setMembers);
+      getHouseMembers(houseId)
+        .then(setMembers)
+        .catch(() => {
+          // no-op: if the member list fails to load, direct-assign just stays unavailable
+        });
     }
   }, [houseId]);
 

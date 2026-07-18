@@ -8,5 +8,13 @@
     "yourNameLabel": "Your name",
     "inviteCodeLabel": "Invite code",
     "submit": "Continue"
+  },
+  "auth": {
+    "emailLabel": "Email",
+    "passwordLabel": "Password",
+    "signUp": "Sign up",
+    "signIn": "Sign in",
+    "switchToSignIn": "Already have an account? Sign in",
+    "switchToSignUp": "Don't have an account? Sign up"
   }
 }

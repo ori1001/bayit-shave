@@ -32,6 +32,7 @@
     "react-native-worklets": "0.10.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@testing-library/react-native": "^14.0.1",
     "@types/jest": "29.5.14",
     "@types/react": "~19.2.2",
@@ -51,4 +52,3 @@
   },
   "private": true
 }
-

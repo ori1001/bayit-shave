@@ -8,5 +8,13 @@
     "yourNameLabel": "השם שלך",
     "inviteCodeLabel": "קוד הזמנה",
     "submit": "המשך"
+  },
+  "auth": {
+    "emailLabel": "אימייל",
+    "passwordLabel": "סיסמה",
+    "signUp": "הרשמה",
+    "signIn": "התחברות",
+    "switchToSignIn": "כבר יש לך חשבון? התחבר/י",
+    "switchToSignUp": "אין לך חשבון? הירשם/י"
   }
 }

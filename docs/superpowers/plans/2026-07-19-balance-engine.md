@@ -552,8 +552,12 @@ Deno.test('run-balance: round_robin alternates between the two house members', a
 Deno.test('run-balance: points_based assigns to whoever is furthest behind', async () => {
   const { house, adminToken, adminMember, member } = await seedHouseWithStrategy('points_based');
 
-  await admin.from('points_ledger').insert({ house_id: house.id, member_id: adminMember.id, points_earned: 50, points_target: 50, debt: 0 });
-  await admin.from('points_ledger').insert({ house_id: house.id, member_id: member.id, points_earned: 0, points_target: 0, debt: 0 });
+  // Deliberately asymmetric even before this run's pool-share is added, so the
+  // outcome can never land on an exact tie regardless of which member's
+  // randomly-generated UUID happens to sort first in the query's `order by id`:
+  // admin is already 20 points ahead of their target, member is 30 behind.
+  await admin.from('points_ledger').insert({ house_id: house.id, member_id: adminMember.id, points_earned: 50, points_target: 30, debt: 0 });
+  await admin.from('points_ledger').insert({ house_id: house.id, member_id: member.id, points_earned: 0, points_target: 30, debt: 0 });
 
   await seedOpenMission(house.id, adminToken, 15, 'Should go to the behind member');
 

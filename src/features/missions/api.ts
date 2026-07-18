@@ -120,3 +120,17 @@ export async function getMyMembership(houseId: string): Promise<{ id: string; ro
   }
   return data;
 }
+
+export async function getMyHouseId(): Promise<string | null> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return null;
+  }
+  const { data, error } = await supabase.from('members').select('house_id').eq('user_id', user.id).maybeSingle();
+  if (error) {
+    throw new Error(error.message);
+  }
+  return data?.house_id ?? null;
+}

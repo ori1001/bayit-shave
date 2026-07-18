@@ -16,5 +16,11 @@
     "signIn": "התחברות",
     "switchToSignIn": "כבר יש לך חשבון? התחבר/י",
     "switchToSignUp": "אין לך חשבון? הירשם/י"
+  },
+  "today": {
+    "greeting": "היום",
+    "noMissions": "אין משימות מתוכננות היום",
+    "suggestMission": "הצעת משימה",
+    "suggestions": "הצעות"
   }
 }

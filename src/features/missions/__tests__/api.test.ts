@@ -6,6 +6,7 @@ import {
   getTodayMissions,
   getSuggestions,
   getMyMembership,
+  getMyHouseId,
 } from '../api';
 import { supabase } from '../../../lib/supabase';
 
@@ -156,5 +157,21 @@ describe('getSuggestions', () => {
     expect(chain.eq).toHaveBeenCalledWith('house_id', 'h1');
     expect(chain.or).toHaveBeenCalledWith('status.eq.pending_approval,proposed_points.not.is.null');
     expect(result).toEqual([{ id: 'm1' }]);
+  });
+});
+
+describe('getMyHouseId', () => {
+  it("returns the house_id of the caller's membership row", async () => {
+    (supabase.auth.getUser as jest.Mock) = jest.fn().mockResolvedValue({ data: { user: { id: 'u1' } } });
+    const chain = mockSelectChain({ data: { house_id: 'h1' }, error: null });
+    (supabase.from as jest.Mock).mockReturnValue(chain);
+    const result = await getMyHouseId();
+    expect(result).toBe('h1');
+  });
+
+  it('returns null when there is no session', async () => {
+    (supabase.auth.getUser as jest.Mock) = jest.fn().mockResolvedValue({ data: { user: null } });
+    const result = await getMyHouseId();
+    expect(result).toBeNull();
   });
 });

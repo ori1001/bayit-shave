@@ -16,5 +16,11 @@
     "signIn": "Sign in",
     "switchToSignIn": "Already have an account? Sign in",
     "switchToSignUp": "Don't have an account? Sign up"
+  },
+  "today": {
+    "greeting": "Today",
+    "noMissions": "No missions planned for today",
+    "suggestMission": "Suggest a mission",
+    "suggestions": "Suggestions"
   }
 }

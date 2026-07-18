@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useRouter } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { signUp, signIn } from '../features/auth/api';
+import { getMyHouseId } from '../features/missions/api';
 
 export default function WelcomeScreen() {
   const { t } = useTranslation();
@@ -22,6 +23,16 @@ export default function WelcomeScreen() {
     });
     return () => sub.subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (hasSession) {
+      getMyHouseId().then((houseId) => {
+        if (houseId) {
+          router.replace('/today');
+        }
+      });
+    }
+  }, [hasSession]);
 
   async function handleAuthSubmit() {
     setError(null);

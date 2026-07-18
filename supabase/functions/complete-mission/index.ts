@@ -81,6 +81,7 @@ Deno.serve(async (req) => {
       .eq('house_id', mission.house_id)
       .eq('member_id', callerMember.id);
     if (ledgerError) {
+      await admin.from('mission_instances').update({ status: 'assigned' }).eq('id', mission_instance_id);
       return new Response(JSON.stringify({ error: 'ledger_update_failed' }), { status: 500 });
     }
   } else {
@@ -88,6 +89,7 @@ Deno.serve(async (req) => {
       .from('points_ledger')
       .insert({ house_id: mission.house_id, member_id: callerMember.id, points_earned: mission.points });
     if (ledgerInsertError) {
+      await admin.from('mission_instances').update({ status: 'assigned' }).eq('id', mission_instance_id);
       return new Response(JSON.stringify({ error: 'ledger_insert_failed' }), { status: 500 });
     }
   }

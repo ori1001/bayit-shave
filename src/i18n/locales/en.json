@@ -22,5 +22,26 @@
     "noMissions": "No missions planned for today",
     "suggestMission": "Suggest a mission",
     "suggestions": "Suggestions"
+  },
+  "missions": {
+    "suggestTitle": "Suggest a mission",
+    "categoryLabel": "Category",
+    "titleLabel": "Mission name",
+    "pointsLabel": "Points (difficulty)",
+    "dueDateLabel": "Due date (YYYY-MM-DD)",
+    "assignmentPool": "Shared pool",
+    "assignmentDirect": "Direct assign",
+    "submit": "Submit suggestion",
+    "categories": {
+      "dishes": "Dishes",
+      "clean": "Cleaning",
+      "laundry": "Laundry",
+      "trash": "Trash",
+      "shop": "Shopping",
+      "pets": "Pets",
+      "garden": "Garden",
+      "bath": "Bathroom",
+      "other": "Other"
+    }
   }
 }

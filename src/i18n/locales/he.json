@@ -22,5 +22,26 @@
     "noMissions": "אין משימות מתוכננות היום",
     "suggestMission": "הצעת משימה",
     "suggestions": "הצעות"
+  },
+  "missions": {
+    "suggestTitle": "הצעת משימה",
+    "categoryLabel": "קטגוריה",
+    "titleLabel": "שם המשימה",
+    "pointsLabel": "נקודות (רמת קושי)",
+    "dueDateLabel": "תאריך יעד (YYYY-MM-DD)",
+    "assignmentPool": "מאגר משותף",
+    "assignmentDirect": "הקצאה ישירה",
+    "submit": "שלח להצעה",
+    "categories": {
+      "dishes": "כלים",
+      "clean": "ניקיון",
+      "laundry": "כביסה",
+      "trash": "זבל",
+      "shop": "קניות",
+      "pets": "חיות",
+      "garden": "גינה",
+      "bath": "אמבטיה",
+      "other": "אחר"
+    }
   }
 }

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { View, Text, Pressable, FlatList } from 'react-native';
+import { View, Text, Pressable, FlatList, TextInput } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useRouter } from 'expo-router';
-import { getMyHouseId, getMyMembership, getTodayMissions, completeMission, type Mission } from '../features/missions/api';
+import { getMyHouseId, getMyMembership, getTodayMissions, completeMission, editMissionPoints, type Mission } from '../features/missions/api';
 
 export default function TodayScreen() {
   const { t } = useTranslation();
@@ -11,6 +11,8 @@ export default function TodayScreen() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [missions, setMissions] = useState<Mission[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editingMissionId, setEditingMissionId] = useState<string | null>(null);
+  const [editPointsValue, setEditPointsValue] = useState('');
 
   async function load() {
     const hId = await getMyHouseId();
@@ -37,6 +39,17 @@ export default function TodayScreen() {
     await load();
   }
 
+  function startEditPoints(mission: Mission) {
+    setEditingMissionId(mission.id);
+    setEditPointsValue(String(mission.points));
+  }
+
+  async function handleSaveEditPoints(missionId: string) {
+    await editMissionPoints(missionId, Number(editPointsValue));
+    setEditingMissionId(null);
+    await load();
+  }
+
   if (loading) {
     return <View style={{ flex: 1 }} />;
   }
@@ -49,15 +62,37 @@ export default function TodayScreen() {
         keyExtractor={(m) => m.id}
         ListEmptyComponent={<Text style={{ opacity: 0.6 }}>{t('today.noMissions')}</Text>}
         renderItem={({ item }) => (
-          <Pressable
-            onPress={() => handleComplete(item.id)}
-            testID={`mission-row-${item.id}`}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10 }}
-          >
-            <View style={{ width: 22, height: 22, borderRadius: 7, borderWidth: 2 }} />
-            <Text style={{ flex: 1, fontWeight: '700' }}>{item.title}</Text>
-            <Text>{item.points}</Text>
-          </Pressable>
+          <View style={{ gap: 6 }}>
+            <Pressable
+              onPress={() => handleComplete(item.id)}
+              testID={`mission-row-${item.id}`}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10 }}
+            >
+              <View style={{ width: 22, height: 22, borderRadius: 7, borderWidth: 2 }} />
+              <Text style={{ flex: 1, fontWeight: '700' }}>{item.title}</Text>
+              <Text>{item.points}</Text>
+              <Pressable onPress={() => startEditPoints(item)} testID={`edit-points-${item.id}`} style={{ padding: 4 }}>
+                <Text style={{ fontSize: 12, opacity: 0.6 }}>{t('missions.editPoints')}</Text>
+              </Pressable>
+            </Pressable>
+            {editingMissionId === item.id && (
+              <View style={{ flexDirection: 'row', gap: 8, paddingStart: 32 }}>
+                <TextInput
+                  value={editPointsValue}
+                  onChangeText={setEditPointsValue}
+                  keyboardType="numeric"
+                  testID={`edit-points-input-${item.id}`}
+                  style={{ borderWidth: 1, borderRadius: 8, padding: 8, width: 80 }}
+                />
+                <Pressable onPress={() => handleSaveEditPoints(item.id)} testID={`edit-points-save-${item.id}`} style={{ padding: 8 }}>
+                  <Text>{t('missions.save')}</Text>
+                </Pressable>
+                <Pressable onPress={() => setEditingMissionId(null)} testID={`edit-points-cancel-${item.id}`} style={{ padding: 8 }}>
+                  <Text>{t('missions.cancel')}</Text>
+                </Pressable>
+              </View>
+            )}
+          </View>
         )}
       />
       <View style={{ gap: 10 }}>

@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View, Text, TextInput, Pressable, ScrollView } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { suggestMission, type MissionCategory, type AssignmentMode } from '../../features/missions/api';
+import { suggestMission, getHouseMembers, type MissionCategory, type AssignmentMode } from '../../features/missions/api';
 
 const CATEGORIES: MissionCategory[] = ['dishes', 'clean', 'laundry', 'trash', 'shop', 'pets', 'garden', 'bath', 'other'];
 
@@ -18,6 +18,14 @@ export default function SuggestMissionScreen() {
   const [assignmentMode, setAssignmentMode] = useState<AssignmentMode>('auto');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [members, setMembers] = useState<{ id: string; name: string; role: 'admin' | 'member' }[]>([]);
+  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (houseId) {
+      getHouseMembers(houseId).then(setMembers);
+    }
+  }, [houseId]);
 
   async function handleSubmit() {
     setError(null);
@@ -30,6 +38,7 @@ export default function SuggestMissionScreen() {
         points: Number(points),
         due_date: dueDate,
         assignment_mode: assignmentMode,
+        ...(assignmentMode === 'direct' ? { target_member_id: selectedMemberId! } : {}),
       });
       router.replace('/today');
     } catch (e) {
@@ -102,11 +111,36 @@ export default function SuggestMissionScreen() {
         </Pressable>
       </View>
 
+      {assignmentMode === 'direct' && (
+        <View style={{ gap: 8 }}>
+          <Text>{t('missions.selectMember')}</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            {members.map((m) => (
+              <Pressable
+                key={m.id}
+                onPress={() => setSelectedMemberId(m.id)}
+                testID={`member-${m.id}`}
+                style={{
+                  paddingVertical: 8,
+                  paddingHorizontal: 12,
+                  borderRadius: 10,
+                  borderWidth: 1.5,
+                  borderColor: selectedMemberId === m.id ? '#26332E' : '#ccc',
+                  backgroundColor: selectedMemberId === m.id ? '#26332E' : 'transparent',
+                }}
+              >
+                <Text style={{ color: selectedMemberId === m.id ? '#F6F1E4' : '#26332E' }}>{m.name}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      )}
+
       {error && <Text testID="suggest-mission-error">{error}</Text>}
 
       <Pressable
         onPress={handleSubmit}
-        disabled={submitting || !title || !points || !dueDate}
+        disabled={submitting || !title || !points || !dueDate || (assignmentMode === 'direct' && !selectedMemberId)}
         testID="suggest-mission-submit"
         style={{ backgroundColor: '#E0A845', borderRadius: 14, padding: 14, alignItems: 'center' }}
       >

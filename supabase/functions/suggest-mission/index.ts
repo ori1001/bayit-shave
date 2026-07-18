@@ -14,6 +14,9 @@ Deno.serve(async (req) => {
   if (!house_id || !category || !title || !points || !due_date || !assignment_mode) {
     return new Response(JSON.stringify({ error: 'missing_required_fields' }), { status: 400 });
   }
+  if (!Number.isInteger(points) || points <= 0) {
+    return new Response(JSON.stringify({ error: 'invalid_points' }), { status: 400 });
+  }
   if (assignment_mode !== 'auto' && assignment_mode !== 'direct') {
     return new Response(JSON.stringify({ error: 'invalid_assignment_mode' }), { status: 400 });
   }

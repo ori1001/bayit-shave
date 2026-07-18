@@ -31,6 +31,10 @@
     "dueDateLabel": "תאריך יעד (YYYY-MM-DD)",
     "assignmentPool": "מאגר משותף",
     "assignmentDirect": "הקצאה ישירה",
+    "selectMember": "בחר/י חבר/ה",
+    "editPoints": "עריכת ניקוד",
+    "save": "שמור",
+    "cancel": "ביטול",
     "submit": "שלח להצעה",
     "categories": {
       "dishes": "כלים",

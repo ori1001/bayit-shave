@@ -31,6 +31,10 @@
     "dueDateLabel": "Due date (YYYY-MM-DD)",
     "assignmentPool": "Shared pool",
     "assignmentDirect": "Direct assign",
+    "selectMember": "Select member",
+    "editPoints": "Edit points",
+    "save": "Save",
+    "cancel": "Cancel",
     "submit": "Submit suggestion",
     "categories": {
       "dishes": "Dishes",

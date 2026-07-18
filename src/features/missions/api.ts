@@ -121,6 +121,16 @@ export async function getMyMembership(houseId: string): Promise<{ id: string; ro
   return data;
 }
 
+export async function getHouseMembers(
+  houseId: string
+): Promise<{ id: string; name: string; role: 'admin' | 'member' }[]> {
+  const { data, error } = await supabase.from('members').select('id, name, role').eq('house_id', houseId);
+  if (error) {
+    throw new Error(error.message);
+  }
+  return (data ?? []) as { id: string; name: string; role: 'admin' | 'member' }[];
+}
+
 export async function getMyHouseId(): Promise<string | null> {
   const {
     data: { user },

@@ -26,11 +26,15 @@ export default function WelcomeScreen() {
 
   useEffect(() => {
     if (hasSession) {
-      getMyHouseId().then((houseId) => {
-        if (houseId) {
-          router.replace('/today');
-        }
-      });
+      getMyHouseId()
+        .then((houseId) => {
+          if (houseId) {
+            router.replace('/today');
+          }
+        })
+        .catch(() => {
+          // no-op: if the house check fails, the user just sees the create/join buttons
+        });
     }
   }, [hasSession]);
 

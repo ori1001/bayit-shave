@@ -7,6 +7,7 @@ import {
   getSuggestions,
   getMyMembership,
   getMyHouseId,
+  getHouseMembers,
 } from '../api';
 import { supabase } from '../../../lib/supabase';
 
@@ -173,5 +174,25 @@ describe('getMyHouseId', () => {
     (supabase.auth.getUser as jest.Mock) = jest.fn().mockResolvedValue({ data: { user: null } });
     const result = await getMyHouseId();
     expect(result).toBeNull();
+  });
+});
+
+describe('getHouseMembers', () => {
+  it('returns the members of a house', async () => {
+    const chain = mockSelectChain({
+      data: [
+        { id: 'mem1', name: 'Noa', role: 'admin' },
+        { id: 'mem2', name: 'Itai', role: 'member' },
+      ],
+      error: null,
+    });
+    (supabase.from as jest.Mock).mockReturnValue(chain);
+    const result = await getHouseMembers('h1');
+    expect(supabase.from).toHaveBeenCalledWith('members');
+    expect(chain.eq).toHaveBeenCalledWith('house_id', 'h1');
+    expect(result).toEqual([
+      { id: 'mem1', name: 'Noa', role: 'admin' },
+      { id: 'mem2', name: 'Itai', role: 'member' },
+    ]);
   });
 });

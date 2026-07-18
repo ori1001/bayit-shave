@@ -15,6 +15,10 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: 'mission_instance_id_and_points_required' }), { status: 400 });
   }
 
+  if (!Number.isInteger(points) || points <= 0) {
+    return new Response(JSON.stringify({ error: 'invalid_points' }), { status: 400 });
+  }
+
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!;

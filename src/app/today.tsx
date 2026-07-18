@@ -13,6 +13,8 @@ export default function TodayScreen() {
   const [loading, setLoading] = useState(true);
   const [editingMissionId, setEditingMissionId] = useState<string | null>(null);
   const [editPointsValue, setEditPointsValue] = useState('');
+  const [pointsEditFeedback, setPointsEditFeedback] = useState<string | null>(null);
+  const [pointsEditError, setPointsEditError] = useState<string | null>(null);
 
   async function load() {
     const hId = await getMyHouseId();
@@ -45,9 +47,18 @@ export default function TodayScreen() {
   }
 
   async function handleSaveEditPoints(missionId: string) {
-    await editMissionPoints(missionId, Number(editPointsValue));
-    setEditingMissionId(null);
-    await load();
+    setPointsEditError(null);
+    try {
+      await editMissionPoints(missionId, Number(editPointsValue));
+      setEditingMissionId(null);
+      if (!isAdmin) {
+        setPointsEditFeedback(t('missions.pointsProposalSent'));
+        setTimeout(() => setPointsEditFeedback(null), 4000);
+      }
+      await load();
+    } catch (e) {
+      setPointsEditError(e instanceof Error ? e.message : t('missions.editPointsError'));
+    }
   }
 
   if (loading) {
@@ -57,6 +68,8 @@ export default function TodayScreen() {
   return (
     <View style={{ flex: 1, padding: 24, gap: 16 }}>
       <Text style={{ fontSize: 26, fontWeight: '800' }}>{t('today.greeting')}</Text>
+      {pointsEditFeedback && <Text testID="points-edit-feedback">{pointsEditFeedback}</Text>}
+      {pointsEditError && <Text testID="points-edit-error">{pointsEditError}</Text>}
       <FlatList
         data={missions}
         keyExtractor={(m) => m.id}

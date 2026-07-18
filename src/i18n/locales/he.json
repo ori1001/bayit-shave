@@ -36,6 +36,8 @@
     "save": "שמור",
     "cancel": "ביטול",
     "submit": "שלח להצעה",
+    "pointsProposalSent": "ההצעה נשלחה לאישור המנהל/ת",
+    "editPointsError": "שגיאה בעדכון הניקוד",
     "categories": {
       "dishes": "כלים",
       "clean": "ניקיון",

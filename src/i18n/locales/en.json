@@ -36,6 +36,8 @@
     "save": "Save",
     "cancel": "Cancel",
     "submit": "Submit suggestion",
+    "pointsProposalSent": "Proposal sent for admin approval",
+    "editPointsError": "Failed to update points",
     "categories": {
       "dishes": "Dishes",
       "clean": "Cleaning",

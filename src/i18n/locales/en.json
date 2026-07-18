@@ -43,5 +43,13 @@
       "bath": "Bathroom",
       "other": "Other"
     }
+  },
+  "suggestions": {
+    "title": "Suggestions",
+    "empty": "No pending suggestions",
+    "newMission": "New mission",
+    "pointsEdit": "Points edit",
+    "approve": "Approve",
+    "reject": "Reject"
   }
 }

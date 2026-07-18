@@ -43,5 +43,13 @@
       "bath": "אמבטיה",
       "other": "אחר"
     }
+  },
+  "suggestions": {
+    "title": "הצעות",
+    "empty": "אין הצעות ממתינות",
+    "newMission": "משימה חדשה",
+    "pointsEdit": "שינוי ניקוד",
+    "approve": "אשר",
+    "reject": "דחה"
   }
 }

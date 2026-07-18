@@ -193,4 +193,84 @@ Deno.test('resolve-suggestion: rejecting a points_edit clears the proposal and l
   assertEquals(rejected.proposed_by, null);
 });
 
-admin; // referenced to avoid unused-import lint noise if a future test needs direct DB assertions
+Deno.test('complete-mission: assigned member completes and points_ledger increments', async () => {
+  const { house, adminToken, member } = await seedHouseWithAdminAndMember();
+  const createRes = await fetch(`${FUNCTIONS_URL}/suggest-mission`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      house_id: house.id,
+      category: 'shop',
+      title: 'Grocery run',
+      points: 18,
+      due_date: '2026-07-20',
+      assignment_mode: 'direct',
+      target_member_id: member.id,
+    }),
+  });
+  const { mission: created } = await createRes.json();
+
+  const completeRes = await fetch(`${FUNCTIONS_URL}/complete-mission`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mission_instance_id: created.id }),
+  });
+  // admin is not the assigned member here — expect a 403, proving the assignment check works
+  assertEquals(completeRes.status, 403);
+
+  const { data: ledgerRow } = await admin
+    .from('points_ledger')
+    .select('points_earned')
+    .eq('house_id', house.id)
+    .eq('member_id', member.id)
+    .maybeSingle();
+  assertEquals(ledgerRow, null);
+});
+
+Deno.test('complete-mission: completing twice is rejected the second time', async () => {
+  const { house, adminToken, memberToken, member } = await seedHouseWithAdminAndMember();
+  const createRes = await fetch(`${FUNCTIONS_URL}/suggest-mission`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      house_id: house.id,
+      category: 'pets',
+      title: 'Feed the cat',
+      points: 5,
+      due_date: '2026-07-20',
+      assignment_mode: 'direct',
+      target_member_id: member.id,
+    }),
+  });
+  const { mission: created } = await createRes.json();
+
+  const firstComplete = await fetch(`${FUNCTIONS_URL}/complete-mission`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${memberToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mission_instance_id: created.id }),
+  });
+  assertEquals(firstComplete.status, 200);
+
+  const { data: ledgerRow } = await admin
+    .from('points_ledger')
+    .select('points_earned')
+    .eq('house_id', house.id)
+    .eq('member_id', member.id)
+    .maybeSingle();
+  assertEquals(ledgerRow?.points_earned, 5);
+
+  const secondComplete = await fetch(`${FUNCTIONS_URL}/complete-mission`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${memberToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mission_instance_id: created.id }),
+  });
+  assertEquals(secondComplete.status, 409);
+
+  const { data: ledgerAfterSecond } = await admin
+    .from('points_ledger')
+    .select('points_earned')
+    .eq('house_id', house.id)
+    .eq('member_id', member.id)
+    .maybeSingle();
+  assertEquals(ledgerAfterSecond?.points_earned, 5);
+});

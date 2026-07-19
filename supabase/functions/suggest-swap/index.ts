@@ -40,9 +40,6 @@ Deno.serve(async (req) => {
   if (!mission) {
     return new Response(JSON.stringify({ error: 'mission_not_found' }), { status: 404 });
   }
-  if (mission.status !== 'assigned') {
-    return new Response(JSON.stringify({ error: 'mission_not_assigned' }), { status: 409 });
-  }
 
   const { data: callerMember, error: callerError } = await admin
     .from('members')
@@ -55,6 +52,10 @@ Deno.serve(async (req) => {
   }
   if (!callerMember || mission.assigned_to !== callerMember.id) {
     return new Response(JSON.stringify({ error: 'not_assigned_to_you' }), { status: 403 });
+  }
+
+  if (mission.status !== 'assigned') {
+    return new Response(JSON.stringify({ error: 'mission_not_assigned' }), { status: 409 });
   }
 
   if (to_member_id === callerMember.id) {

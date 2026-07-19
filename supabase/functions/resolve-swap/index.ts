@@ -85,6 +85,14 @@ Deno.serve(async (req) => {
     });
   }
 
+  const { error: missionUpdateError } = await admin
+    .from('mission_instances')
+    .update({ assigned_to: swap.to_member })
+    .eq('id', swap.mission_instance_id);
+  if (missionUpdateError) {
+    return new Response(JSON.stringify({ error: 'mission_transfer_failed' }), { status: 500 });
+  }
+
   const { data: updated, error: updateError } = await admin
     .from('swap_requests')
     .update({ status: 'approved', approved_by: callerMember.id })
@@ -93,14 +101,6 @@ Deno.serve(async (req) => {
     .single();
   if (updateError) {
     return new Response(JSON.stringify({ error: 'resolve_failed' }), { status: 500 });
-  }
-
-  const { error: missionUpdateError } = await admin
-    .from('mission_instances')
-    .update({ assigned_to: swap.to_member })
-    .eq('id', swap.mission_instance_id);
-  if (missionUpdateError) {
-    return new Response(JSON.stringify({ error: 'mission_transfer_failed' }), { status: 500 });
   }
 
   return new Response(JSON.stringify({ swap: updated }), {

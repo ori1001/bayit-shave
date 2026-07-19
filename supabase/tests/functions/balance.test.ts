@@ -164,3 +164,45 @@ Deno.test('assign-mission: reassigning a done mission is rejected with 409', asy
   const { data: unchanged } = await admin.from('mission_instances').select('status').eq('id', mission.id).single();
   assertEquals(unchanged!.status, 'done');
 });
+
+Deno.test('run-balance: an approved-unavailable member is excluded and their share becomes debt', async () => {
+  const { house, adminToken, adminMember, member } = await seedHouseWithStrategy('points_based');
+
+  const { data: unavailability } = await admin
+    .from('unavailability_requests')
+    .insert({
+      house_id: house.id,
+      member_id: member.id,
+      period_start: '2020-01-01',
+      period_end: '2999-12-31',
+      status: 'approved',
+    })
+    .select()
+    .single();
+
+  await admin.from('points_ledger').insert({ house_id: house.id, member_id: adminMember.id, points_earned: 0, points_target: 0, debt: 0 });
+  await admin.from('points_ledger').insert({ house_id: house.id, member_id: member.id, points_earned: 0, points_target: 0, debt: 0 });
+
+  await seedOpenMission(house.id, adminToken, 10, 'Should skip the unavailable member');
+
+  const res = await fetch(`${FUNCTIONS_URL}/run-balance`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ house_id: house.id }),
+  });
+  assertEquals(res.status, 200);
+  const { assigned } = await res.json();
+  assertEquals(assigned.length, 1);
+  assertEquals(assigned[0].member_id, adminMember.id);
+
+  const { data: memberLedger } = await admin
+    .from('points_ledger')
+    .select('points_target, debt')
+    .eq('house_id', house.id)
+    .eq('member_id', member.id)
+    .single();
+  assertEquals(memberLedger!.points_target, 0);
+  assertEquals(memberLedger!.debt, 5);
+
+  void unavailability;
+});

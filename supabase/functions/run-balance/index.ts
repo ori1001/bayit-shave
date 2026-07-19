@@ -87,17 +87,34 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: 'no_members_found' }), { status: 500 });
   }
 
+  const today = new Date().toISOString().slice(0, 10);
+  const { data: activeUnavailability, error: unavailabilityError } = await admin
+    .from('unavailability_requests')
+    .select('member_id')
+    .eq('house_id', house_id)
+    .eq('status', 'approved')
+    .lte('period_start', today)
+    .gte('period_end', today);
+  if (unavailabilityError) {
+    return new Response(JSON.stringify({ error: 'lookup_failed' }), { status: 500 });
+  }
+  const unavailableMemberIds = new Set((activeUnavailability ?? []).map((u) => u.member_id));
+  const availableMembers = members.filter((m) => !unavailableMemberIds.has(m.id));
+
   const assigned: { mission_id: string; member_id: string }[] = [];
 
-  if (house.assignment_strategy === 'round_robin') {
+  if (availableMembers.length === 0) {
+    // Everyone eligible to receive missions is currently unavailable — nothing to assign
+    // this run, but the target/debt accounting below still needs to run for everyone.
+  } else if (house.assignment_strategy === 'round_robin') {
     let startIndex = 0;
     if (house.round_robin_cursor) {
-      const cursorIndex = members.findIndex((m) => m.id === house.round_robin_cursor);
-      startIndex = cursorIndex >= 0 ? (cursorIndex + 1) % members.length : 0;
+      const cursorIndex = availableMembers.findIndex((m) => m.id === house.round_robin_cursor);
+      startIndex = cursorIndex >= 0 ? (cursorIndex + 1) % availableMembers.length : 0;
     }
     let cursor = startIndex;
     for (const mission of openMissions) {
-      const member = members[cursor];
+      const member = availableMembers[cursor];
       const { error: assignError } = await admin
         .from('mission_instances')
         .update({ assigned_to: member.id, status: 'assigned' })
@@ -105,7 +122,7 @@ Deno.serve(async (req) => {
       if (!assignError) {
         assigned.push({ mission_id: mission.id, member_id: member.id });
       }
-      cursor = (cursor + 1) % members.length;
+      cursor = (cursor + 1) % availableMembers.length;
     }
     const lastAssignedMemberId = assigned.length > 0 ? assigned[assigned.length - 1].member_id : house.round_robin_cursor;
     await admin.from('houses').update({ round_robin_cursor: lastAssignedMemberId }).eq('id', house_id);
@@ -120,7 +137,7 @@ Deno.serve(async (req) => {
     const poolPoints = openMissions.reduce((sum, m) => sum + m.points, 0);
 
     const projectedDeficit = new Map<string, number>();
-    for (const member of members) {
+    for (const member of availableMembers) {
       const ledger = ledgerByMember.get(member.id);
       const earned = ledger?.points_earned ?? 0;
       const target = ledger?.points_target ?? 0;
@@ -131,9 +148,9 @@ Deno.serve(async (req) => {
     }
 
     for (const mission of openMissions) {
-      let pickedMember = members[0];
+      let pickedMember = availableMembers[0];
       let highestDeficit = -Infinity;
-      for (const member of members) {
+      for (const member of availableMembers) {
         const deficit = projectedDeficit.get(member.id) ?? 0;
         if (deficit > highestDeficit) {
           highestDeficit = deficit;
@@ -149,20 +166,35 @@ Deno.serve(async (req) => {
         projectedDeficit.set(pickedMember.id, (projectedDeficit.get(pickedMember.id) ?? 0) - mission.points);
       }
     }
+  }
+
+  if (house.assignment_strategy === 'points_based') {
+    const { data: ledgerRows } = await admin
+      .from('points_ledger')
+      .select('member_id, points_earned, points_target, debt')
+      .eq('house_id', house_id);
+    const ledgerByMember = new Map((ledgerRows ?? []).map((r) => [r.member_id, r]));
+    const totalWeight = members.reduce((sum, m) => sum + Number(m.weight), 0);
+    const poolPoints = openMissions.reduce((sum, m) => sum + m.points, 0);
 
     for (const member of members) {
       const shareOfPool = (Number(member.weight) / totalWeight) * poolPoints;
       const existing = ledgerByMember.get(member.id);
+      const isUnavailable = unavailableMemberIds.has(member.id);
+
       if (existing) {
-        await admin
-          .from('points_ledger')
-          .update({ points_target: Number(existing.points_target) + shareOfPool })
-          .eq('house_id', house_id)
-          .eq('member_id', member.id);
+        const update = isUnavailable
+          ? { debt: Number(existing.debt) + Math.round(shareOfPool) }
+          : { points_target: Number(existing.points_target) + shareOfPool };
+        await admin.from('points_ledger').update(update).eq('house_id', house_id).eq('member_id', member.id);
       } else {
-        await admin
-          .from('points_ledger')
-          .insert({ house_id, member_id: member.id, points_earned: 0, points_target: shareOfPool, debt: 0 });
+        await admin.from('points_ledger').insert({
+          house_id,
+          member_id: member.id,
+          points_earned: 0,
+          points_target: isUnavailable ? 0 : shareOfPool,
+          debt: isUnavailable ? Math.round(shareOfPool) : 0,
+        });
       }
     }
   }

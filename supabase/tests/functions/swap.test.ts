@@ -114,6 +114,55 @@ Deno.test('suggest-swap: non-assignee cannot suggest a swap on the mission', asy
   assertEquals(res.status, 403);
 });
 
+Deno.test('resolve-swap: approve rejects a swap whose mission was reassigned after acceptance', async () => {
+  const { house, adminToken, adminMember, memberToken, member, mission } = await seedHouseWithTwoMembersAndAssignedMission();
+
+  const thirdMemberToken = await signUpAndSignIn(`third+${crypto.randomUUID()}@example.com`);
+  const thirdJoinRes = await fetch(`${FUNCTIONS_URL}/join-house`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${thirdMemberToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ invite_code: house.invite_code, name: 'Third' }),
+  });
+  const { member: thirdMember } = await thirdJoinRes.json();
+
+  const suggestRes = await fetch(`${FUNCTIONS_URL}/suggest-swap`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mission_instance_id: mission.id, to_member_id: member.id }),
+  });
+  const { swap } = await suggestRes.json();
+
+  const acceptRes = await fetch(`${FUNCTIONS_URL}/respond-swap`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${memberToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ swap_request_id: swap.id, decision: 'accept' }),
+  });
+  assertEquals(acceptRes.status, 200);
+
+  // Mission gets reassigned to a third member (e.g. via the Balance Engine's assign-mission)
+  // AFTER the swap was accepted but BEFORE the admin approves it.
+  const reassignRes = await fetch(`${FUNCTIONS_URL}/assign-mission`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mission_instance_id: mission.id, member_id: thirdMember.id }),
+  });
+  assertEquals(reassignRes.status, 200);
+
+  const approveRes = await fetch(`${FUNCTIONS_URL}/resolve-swap`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ swap_request_id: swap.id, decision: 'approve' }),
+  });
+  assertEquals(approveRes.status, 409);
+  const body = await approveRes.json();
+  assertEquals(body.error, 'mission_no_longer_swappable');
+
+  const { data: updatedMission } = await admin.from('mission_instances').select('assigned_to').eq('id', mission.id).single();
+  assertEquals(updatedMission!.assigned_to, thirdMember.id);
+
+  void adminMember;
+});
+
 Deno.test('respond-swap: only the target member can accept/decline', async () => {
   const { adminToken, member, mission } = await seedHouseWithTwoMembersAndAssignedMission();
 

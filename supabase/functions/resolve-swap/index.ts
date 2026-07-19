@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
 
   const { data: swap, error: swapError } = await admin
     .from('swap_requests')
-    .select('id, house_id, mission_instance_id, to_member, status, created_at')
+    .select('id, house_id, mission_instance_id, from_member, to_member, status, created_at')
     .eq('id', swap_request_id)
     .maybeSingle();
   if (swapError) {
@@ -83,6 +83,18 @@ Deno.serve(async (req) => {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
+  }
+
+  const { data: mission, error: missionFetchError } = await admin
+    .from('mission_instances')
+    .select('status, assigned_to')
+    .eq('id', swap.mission_instance_id)
+    .maybeSingle();
+  if (missionFetchError) {
+    return new Response(JSON.stringify({ error: 'lookup_failed' }), { status: 500 });
+  }
+  if (!mission || mission.status !== 'assigned' || mission.assigned_to !== swap.from_member) {
+    return new Response(JSON.stringify({ error: 'mission_no_longer_swappable' }), { status: 409 });
   }
 
   const { error: missionUpdateError } = await admin

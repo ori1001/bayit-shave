@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { View, Text, Pressable, FlatList } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useLocalSearchParams } from 'expo-router';
-import { getSuggestions, resolveSuggestion, type Mission } from '../../features/missions/api';
+import { getSuggestions, resolveSuggestion, getHouseMembers, type Mission } from '../../features/missions/api';
 import {
   getPendingSwapsForAdmin,
   getPendingUnavailability,
@@ -25,14 +25,17 @@ export default function SuggestionsScreen() {
   const { t } = useTranslation();
   const { houseId } = useLocalSearchParams<{ houseId: string }>();
   const [items, setItems] = useState<InboxItem[]>([]);
+  const [members, setMembers] = useState<{ id: string; name: string; role: 'admin' | 'member' }[]>([]);
   const [loading, setLoading] = useState(true);
 
   async function load() {
-    const [missions, swaps, unavailability] = await Promise.all([
+    const [missions, swaps, unavailability, houseMembers] = await Promise.all([
       getSuggestions(houseId),
       getPendingSwapsForAdmin(houseId),
       getPendingUnavailability(houseId),
+      getHouseMembers(houseId),
     ]);
+    setMembers(houseMembers);
     setItems([
       ...missions.map((mission): InboxItem => ({ kind: 'mission', mission })),
       ...swaps.map((swap): InboxItem => ({ kind: 'swap', swap })),
@@ -110,6 +113,11 @@ export default function SuggestionsScreen() {
             return (
               <View testID={`suggestion-swap-${item.swap.id}`} style={{ borderWidth: 1, borderRadius: 14, padding: 14, marginBottom: 10, gap: 6 }}>
                 <Text style={{ fontSize: 11, fontWeight: '700', opacity: 0.6 }}>{t('suggestions.swap')}</Text>
+                <Text style={{ fontWeight: '700' }}>
+                  {item.swap.mission_instances?.title ?? ''} ·{' '}
+                  {members.find((m) => m.id === item.swap.from_member)?.name ?? item.swap.from_member} →{' '}
+                  {members.find((m) => m.id === item.swap.to_member)?.name ?? item.swap.to_member}
+                </Text>
                 <View style={{ flexDirection: 'row', gap: 8 }}>
                   <Pressable
                     onPress={() => handleSwapDecision(item.swap, 'approve')}

@@ -8,6 +8,7 @@ export interface SwapRequest {
   to_member: string;
   status: 'pending' | 'accepted' | 'approved' | 'rejected';
   approved_by: string | null;
+  mission_instances?: { title: string } | null;
 }
 
 export interface UnavailabilityRequest {
@@ -106,7 +107,7 @@ export async function getMyIncomingSwaps(houseId: string, memberId: string): Pro
 export async function getPendingSwapsForAdmin(houseId: string): Promise<SwapRequest[]> {
   const { data, error } = await supabase
     .from('swap_requests')
-    .select('*')
+    .select('*, mission_instances(title)')
     .eq('house_id', houseId)
     .eq('status', 'accepted');
   if (error) {

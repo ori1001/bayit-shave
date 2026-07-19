@@ -22,7 +22,8 @@
     "noMissions": "No missions planned for today",
     "suggestMission": "Suggest a mission",
     "suggestions": "Suggestions",
-    "balance": "House balance"
+    "balance": "House balance",
+    "unavailability": "Request time off"
   },
   "missions": {
     "suggestTitle": "Suggest a mission",
@@ -77,5 +78,12 @@
     "incomingTitle": "Swap requests for you",
     "accept": "Accept",
     "decline": "Decline"
+  },
+  "unavailability": {
+    "title": "Request time off",
+    "periodStartLabel": "From (YYYY-MM-DD)",
+    "periodEndLabel": "To (YYYY-MM-DD)",
+    "reasonLabel": "Reason (optional)",
+    "submit": "Submit request"
   }
 }

@@ -22,7 +22,8 @@
     "noMissions": "אין משימות מתוכננות היום",
     "suggestMission": "הצעת משימה",
     "suggestions": "הצעות",
-    "balance": "מאזן הבית"
+    "balance": "מאזן הבית",
+    "unavailability": "בקש/י חופש"
   },
   "missions": {
     "suggestTitle": "הצעת משימה",
@@ -77,5 +78,12 @@
     "incomingTitle": "בקשות החלפה אליך",
     "accept": "קבל/י",
     "decline": "דחה/י"
+  },
+  "unavailability": {
+    "title": "בקשת חופש",
+    "periodStartLabel": "מתאריך (YYYY-MM-DD)",
+    "periodEndLabel": "עד תאריך (YYYY-MM-DD)",
+    "reasonLabel": "סיבה (לא חובה)",
+    "submit": "שלח בקשה"
   }
 }

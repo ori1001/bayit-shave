@@ -70,5 +70,12 @@
     "onTrack": "On track",
     "runBalance": "Run balance",
     "openMissions": "Open missions waiting in the pool"
+  },
+  "swap": {
+    "requestSwap": "Request swap",
+    "selectMember": "Select who to swap with",
+    "incomingTitle": "Swap requests for you",
+    "accept": "Accept",
+    "decline": "Decline"
   }
 }

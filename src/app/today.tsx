@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { View, Text, Pressable, FlatList, TextInput } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useRouter } from 'expo-router';
-import { getMyHouseId, getMyMembership, getTodayMissions, completeMission, editMissionPoints, type Mission } from '../features/missions/api';
+import { getMyHouseId, getMyMembership, getTodayMissions, getHouseMembers, completeMission, editMissionPoints, type Mission } from '../features/missions/api';
+import { getMyIncomingSwaps, suggestSwap, respondSwap, type SwapRequest } from '../features/requests/api';
 
 export default function TodayScreen() {
   const { t } = useTranslation();
@@ -15,6 +16,10 @@ export default function TodayScreen() {
   const [editPointsValue, setEditPointsValue] = useState('');
   const [pointsEditFeedback, setPointsEditFeedback] = useState<string | null>(null);
   const [pointsEditError, setPointsEditError] = useState<string | null>(null);
+  const [members, setMembers] = useState<{ id: string; name: string; role: 'admin' | 'member' }[]>([]);
+  const [incomingSwaps, setIncomingSwaps] = useState<SwapRequest[]>([]);
+  const [swappingMissionId, setSwappingMissionId] = useState<string | null>(null);
+  const [myMemberId, setMyMemberId] = useState<string | null>(null);
 
   async function load() {
     const hId = await getMyHouseId();
@@ -26,8 +31,15 @@ export default function TodayScreen() {
     const membership = await getMyMembership(hId);
     setIsAdmin(membership?.role === 'admin');
     if (membership) {
-      const todayMissions = await getTodayMissions(hId, membership.id);
+      setMyMemberId(membership.id);
+      const [todayMissions, houseMembers, swaps] = await Promise.all([
+        getTodayMissions(hId, membership.id),
+        getHouseMembers(hId),
+        getMyIncomingSwaps(hId, membership.id),
+      ]);
       setMissions(todayMissions);
+      setMembers(houseMembers);
+      setIncomingSwaps(swaps);
     }
     setLoading(false);
   }
@@ -61,6 +73,17 @@ export default function TodayScreen() {
     }
   }
 
+  async function handleRequestSwap(missionId: string, toMemberId: string) {
+    await suggestSwap(missionId, toMemberId);
+    setSwappingMissionId(null);
+    await load();
+  }
+
+  async function handleRespondSwap(swapId: string, decision: 'accept' | 'decline') {
+    await respondSwap(swapId, decision);
+    await load();
+  }
+
   if (loading) {
     return <View style={{ flex: 1 }} />;
   }
@@ -68,6 +91,22 @@ export default function TodayScreen() {
   return (
     <View style={{ flex: 1, padding: 24, gap: 16 }}>
       <Text style={{ fontSize: 26, fontWeight: '800' }}>{t('today.greeting')}</Text>
+      {incomingSwaps.length > 0 && (
+        <View style={{ gap: 8 }}>
+          <Text style={{ fontWeight: '700' }}>{t('swap.incomingTitle')}</Text>
+          {incomingSwaps.map((swap) => (
+            <View key={swap.id} testID={`incoming-swap-${swap.id}`} style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+              <Text style={{ flex: 1 }}>{members.find((m) => m.id === swap.from_member)?.name ?? swap.from_member}</Text>
+              <Pressable onPress={() => handleRespondSwap(swap.id, 'accept')} testID={`accept-swap-${swap.id}`} style={{ padding: 8 }}>
+                <Text style={{ color: '#7C9473', fontWeight: '700' }}>{t('swap.accept')}</Text>
+              </Pressable>
+              <Pressable onPress={() => handleRespondSwap(swap.id, 'decline')} testID={`decline-swap-${swap.id}`} style={{ padding: 8 }}>
+                <Text style={{ color: '#A6425A', fontWeight: '700' }}>{t('swap.decline')}</Text>
+              </Pressable>
+            </View>
+          ))}
+        </View>
+      )}
       {pointsEditFeedback && <Text testID="points-edit-feedback">{pointsEditFeedback}</Text>}
       {pointsEditError && <Text testID="points-edit-error">{pointsEditError}</Text>}
       <FlatList
@@ -87,6 +126,9 @@ export default function TodayScreen() {
               <Pressable onPress={() => startEditPoints(item)} testID={`edit-points-${item.id}`} style={{ padding: 4 }}>
                 <Text style={{ fontSize: 12, opacity: 0.6 }}>{t('missions.editPoints')}</Text>
               </Pressable>
+              <Pressable onPress={() => setSwappingMissionId(item.id)} testID={`swap-${item.id}`} style={{ padding: 4 }}>
+                <Text style={{ fontSize: 12, opacity: 0.6 }}>{t('swap.requestSwap')}</Text>
+              </Pressable>
             </Pressable>
             {editingMissionId === item.id && (
               <View style={{ flexDirection: 'row', gap: 8, paddingStart: 32 }}>
@@ -103,6 +145,23 @@ export default function TodayScreen() {
                 <Pressable onPress={() => setEditingMissionId(null)} testID={`edit-points-cancel-${item.id}`} style={{ padding: 8 }}>
                   <Text>{t('missions.cancel')}</Text>
                 </Pressable>
+              </View>
+            )}
+            {swappingMissionId === item.id && (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingStart: 32 }}>
+                <Text style={{ width: '100%', fontSize: 12, opacity: 0.6 }}>{t('swap.selectMember')}</Text>
+                {members
+                  .filter((m) => m.id !== myMemberId)
+                  .map((m) => (
+                    <Pressable
+                      key={m.id}
+                      onPress={() => handleRequestSwap(item.id, m.id)}
+                      testID={`swap-target-${item.id}-${m.id}`}
+                      style={{ borderWidth: 1, borderRadius: 8, padding: 6 }}
+                    >
+                      <Text style={{ fontSize: 11 }}>{m.name}</Text>
+                    </Pressable>
+                  ))}
               </View>
             )}
           </View>

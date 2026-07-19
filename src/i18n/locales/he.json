@@ -70,5 +70,12 @@
     "onTrack": "מאוזן/ת",
     "runBalance": "הרץ איזון",
     "openMissions": "משימות בהמתנה במאגר"
+  },
+  "swap": {
+    "requestSwap": "בקש/י החלפה",
+    "selectMember": "בחר/י עם מי להחליף",
+    "incomingTitle": "בקשות החלפה אליך",
+    "accept": "קבל/י",
+    "decline": "דחה/י"
   }
 }

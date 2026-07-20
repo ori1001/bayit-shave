@@ -189,6 +189,13 @@ export default function TodayScreen() {
         >
           <Text style={{ color: '#8B5FBF', fontWeight: '700' }}>{t('today.unavailability')}</Text>
         </Pressable>
+        <Pressable
+          onPress={() => router.push({ pathname: '/calendar', params: { houseId: houseId ?? '' } })}
+          testID="today-calendar"
+          style={{ borderWidth: 1.5, borderColor: '#5B72C9', borderRadius: 14, padding: 14, alignItems: 'center' }}
+        >
+          <Text style={{ color: '#5B72C9', fontWeight: '700' }}>{t('today.calendar')}</Text>
+        </Pressable>
         {isAdmin && (
           <Pressable
             onPress={() => router.push({ pathname: '/missions/suggestions', params: { houseId: houseId ?? '' } })}

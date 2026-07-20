@@ -86,5 +86,17 @@
     "periodEndLabel": "To (YYYY-MM-DD)",
     "reasonLabel": "Reason (optional)",
     "submit": "Submit request"
+  },
+  "calendar": {
+    "title": "Calendar",
+    "mine": "Mine",
+    "everyone": "Everyone",
+    "noMissionsThisDay": "No missions on this day",
+    "editDate": "Edit date",
+    "suggestNewDate": "Suggest new date",
+    "newDateLabel": "New date (YYYY-MM-DD)",
+    "save": "Save",
+    "cancel": "Cancel",
+    "viewOnly": "View only"
   }
 }

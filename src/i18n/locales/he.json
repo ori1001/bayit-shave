@@ -86,5 +86,17 @@
     "periodEndLabel": "עד תאריך (YYYY-MM-DD)",
     "reasonLabel": "סיבה (לא חובה)",
     "submit": "שלח בקשה"
+  },
+  "calendar": {
+    "title": "לוח שנה",
+    "mine": "שלי",
+    "everyone": "כולם",
+    "noMissionsThisDay": "אין משימות ביום זה",
+    "editDate": "ערוך תאריך",
+    "suggestNewDate": "הצע תאריך חדש",
+    "newDateLabel": "תאריך חדש (YYYY-MM-DD)",
+    "save": "שמור",
+    "cancel": "ביטול",
+    "viewOnly": "צפייה בלבד"
   }
 }

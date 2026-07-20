@@ -12,8 +12,14 @@ import {
   type UnavailabilityRequest,
 } from '../../features/requests/api';
 
-function suggestionTypeOf(mission: Mission): 'new_mission' | 'points_edit' {
-  return mission.status === 'pending_approval' ? 'new_mission' : 'points_edit';
+function suggestionTypeOf(mission: Mission): 'new_mission' | 'points_edit' | 'schedule_edit' {
+  if (mission.status === 'pending_approval') {
+    return 'new_mission';
+  }
+  if (mission.proposed_points !== null) {
+    return 'points_edit';
+  }
+  return 'schedule_edit';
 }
 
 type InboxItem =
@@ -82,12 +88,14 @@ export default function SuggestionsScreen() {
             return (
               <View testID={`suggestion-${item.mission.id}`} style={{ borderWidth: 1, borderRadius: 14, padding: 14, marginBottom: 10, gap: 6 }}>
                 <Text style={{ fontSize: 11, fontWeight: '700', opacity: 0.6 }}>
-                  {kind === 'new_mission' ? t('suggestions.newMission') : t('suggestions.pointsEdit')}
+                  {kind === 'new_mission' ? t('suggestions.newMission') : kind === 'points_edit' ? t('suggestions.pointsEdit') : t('suggestions.scheduleEdit')}
                 </Text>
                 <Text style={{ fontWeight: '700' }}>
                   {kind === 'new_mission'
                     ? `${item.mission.title} · ${item.mission.points}`
-                    : `${item.mission.title} · ${item.mission.points} → ${item.mission.proposed_points}`}
+                    : kind === 'points_edit'
+                      ? `${item.mission.title} · ${item.mission.points} → ${item.mission.proposed_points}`
+                      : `${item.mission.title} · ${item.mission.due_date} → ${item.mission.proposed_due_date}`}
                 </Text>
                 <View style={{ flexDirection: 'row', gap: 8 }}>
                   <Pressable

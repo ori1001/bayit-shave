@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
-import { View, Text, TextInput, Pressable } from 'react-native';
+import { View, Text, TextInput, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
 import { signUp, signIn } from '../features/auth/api';
 import { getMyHouseId } from '../features/missions/api';
+import { AnimatedPressable } from '../components/AnimatedPressable';
+import { colors, spacing, radii } from '../theme';
 
 export default function WelcomeScreen() {
   const { t } = useTranslation();
@@ -55,14 +58,17 @@ export default function WelcomeScreen() {
   }
 
   if (hasSession === null) {
-    return <View style={{ flex: 1 }} />;
+    return <View style={{ flex: 1, backgroundColor: colors.background }} />;
   }
 
   if (!hasSession) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, gap: 12 }}>
-        <Text style={{ fontSize: 28, fontWeight: '800' }}>{t('onboarding.appName')}</Text>
-        <Text style={{ textAlign: 'center', opacity: 0.7 }}>{t('onboarding.tagline')}</Text>
+      <View style={styles.screen}>
+        <View style={styles.brand}>
+          <Ionicons name="home-outline" size={36} color={colors.ink} />
+          <Text style={styles.appName}>{t('onboarding.appName')}</Text>
+        </View>
+        <Text style={styles.tagline}>{t('onboarding.tagline')}</Text>
         <TextInput
           value={email}
           onChangeText={setEmail}
@@ -70,7 +76,7 @@ export default function WelcomeScreen() {
           testID="auth-email-input"
           autoCapitalize="none"
           keyboardType="email-address"
-          style={{ width: '100%', borderWidth: 1, borderRadius: 12, padding: 12 }}
+          style={styles.input}
         />
         <TextInput
           value={password}
@@ -78,46 +84,113 @@ export default function WelcomeScreen() {
           placeholder={t('auth.passwordLabel')}
           testID="auth-password-input"
           secureTextEntry
-          style={{ width: '100%', borderWidth: 1, borderRadius: 12, padding: 12 }}
+          style={styles.input}
         />
-        {error && <Text testID="auth-error">{error}</Text>}
-        <Pressable
+        {error && (
+          <Text testID="auth-error" style={styles.errorText}>
+            {error}
+          </Text>
+        )}
+        <AnimatedPressable
           onPress={handleAuthSubmit}
           disabled={submitting || !email || !password}
           testID="auth-submit"
-          style={{ backgroundColor: '#26332E', borderRadius: 14, padding: 14, alignItems: 'center', width: '100%' }}
+          style={styles.primaryButton}
         >
-          <Text style={{ color: '#F6F1E4', fontWeight: '700' }}>
-            {t(mode === 'signUp' ? 'auth.signUp' : 'auth.signIn')}
-          </Text>
-        </Pressable>
-        <Pressable onPress={() => setMode(mode === 'signUp' ? 'signIn' : 'signUp')} testID="auth-switch-mode">
-          <Text style={{ opacity: 0.6 }}>{t(mode === 'signUp' ? 'auth.switchToSignIn' : 'auth.switchToSignUp')}</Text>
-        </Pressable>
+          <Ionicons name={mode === 'signUp' ? 'person-add-outline' : 'log-in-outline'} size={18} color={colors.cream} />
+          <Text style={styles.primaryButtonText}>{t(mode === 'signUp' ? 'auth.signUp' : 'auth.signIn')}</Text>
+        </AnimatedPressable>
+        <AnimatedPressable onPress={() => setMode(mode === 'signUp' ? 'signIn' : 'signUp')} testID="auth-switch-mode">
+          <Text style={styles.switchModeText}>{t(mode === 'signUp' ? 'auth.switchToSignIn' : 'auth.switchToSignUp')}</Text>
+        </AnimatedPressable>
       </View>
     );
   }
 
   return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, gap: 16 }}>
-      <Text style={{ fontSize: 28, fontWeight: '800' }}>{t('onboarding.appName')}</Text>
-      <Text style={{ textAlign: 'center', opacity: 0.7 }}>{t('onboarding.tagline')}</Text>
-      <View style={{ width: '100%', gap: 12, marginTop: 16 }}>
-        <Pressable
-          onPress={() => router.push('/onboarding/create-house')}
-          testID="welcome-create-house"
-          style={{ backgroundColor: '#26332E', borderRadius: 14, padding: 14, alignItems: 'center' }}
-        >
-          <Text style={{ color: '#F6F1E4', fontWeight: '700' }}>{t('onboarding.createHouse')}</Text>
-        </Pressable>
-        <Pressable
-          onPress={() => router.push('/onboarding/join-house')}
-          testID="welcome-join-house"
-          style={{ borderWidth: 1.5, borderColor: '#26332E', borderRadius: 14, padding: 14, alignItems: 'center' }}
-        >
-          <Text style={{ color: '#26332E', fontWeight: '700' }}>{t('onboarding.joinHouse')}</Text>
-        </Pressable>
+    <View style={styles.screen}>
+      <View style={styles.brand}>
+        <Ionicons name="home-outline" size={36} color={colors.ink} />
+        <Text style={styles.appName}>{t('onboarding.appName')}</Text>
+      </View>
+      <Text style={styles.tagline}>{t('onboarding.tagline')}</Text>
+      <View style={{ width: '100%', gap: spacing.md, marginTop: spacing.lg }}>
+        <AnimatedPressable onPress={() => router.push('/onboarding/create-house')} testID="welcome-create-house" style={styles.primaryButton}>
+          <Ionicons name="add-circle-outline" size={18} color={colors.cream} />
+          <Text style={styles.primaryButtonText}>{t('onboarding.createHouse')}</Text>
+        </AnimatedPressable>
+        <AnimatedPressable onPress={() => router.push('/onboarding/join-house')} testID="welcome-join-house" style={styles.secondaryButton}>
+          <Ionicons name="people-outline" size={18} color={colors.ink} />
+          <Text style={styles.secondaryButtonText}>{t('onboarding.joinHouse')}</Text>
+        </AnimatedPressable>
       </View>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.xl,
+    gap: spacing.md,
+    backgroundColor: colors.background,
+  },
+  brand: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  appName: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: colors.ink,
+  },
+  tagline: {
+    textAlign: 'center',
+    color: colors.textMuted,
+  },
+  input: {
+    width: '100%',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    padding: spacing.md,
+    backgroundColor: colors.surface,
+  },
+  errorText: {
+    color: colors.rose,
+  },
+  primaryButton: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.ink,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    width: '100%',
+  },
+  primaryButtonText: {
+    color: colors.cream,
+    fontWeight: '700',
+  },
+  secondaryButton: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+  },
+  secondaryButtonText: {
+    color: colors.ink,
+    fontWeight: '700',
+  },
+  switchModeText: {
+    color: colors.textMuted,
+  },
+});

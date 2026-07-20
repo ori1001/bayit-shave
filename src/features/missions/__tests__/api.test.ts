@@ -8,6 +8,8 @@ import {
   getMyMembership,
   getMyHouseId,
   getHouseMembers,
+  editMissionSchedule,
+  getMonthMissions,
 } from '../api';
 import { supabase } from '../../../lib/supabase';
 
@@ -108,10 +110,27 @@ describe('completeMission', () => {
   });
 });
 
+describe('editMissionSchedule', () => {
+  it('invokes edit-mission-schedule with mission id and due date', async () => {
+    (supabase.functions.invoke as jest.Mock).mockResolvedValue({
+      data: { mission: { id: 'm1', proposed_due_date: '2026-08-01' } },
+      error: null,
+    });
+    const result = await editMissionSchedule('m1', '2026-08-01');
+    expect(supabase.functions.invoke).toHaveBeenCalledWith('edit-mission-schedule', {
+      body: { mission_instance_id: 'm1', due_date: '2026-08-01' },
+    });
+    expect(result.mission.proposed_due_date).toBe('2026-08-01');
+  });
+});
+
 function mockSelectChain(finalResult: { data: unknown; error: unknown }) {
   const chain = {
     select: jest.fn().mockReturnThis(),
     eq: jest.fn().mockReturnThis(),
+    neq: jest.fn().mockReturnThis(),
+    gte: jest.fn().mockReturnThis(),
+    lte: jest.fn().mockReturnThis(),
     or: jest.fn().mockReturnThis(),
     maybeSingle: jest.fn().mockResolvedValue(finalResult),
     then: (resolve: (value: { data: unknown; error: unknown }) => void) => resolve(finalResult),
@@ -128,6 +147,20 @@ describe('getTodayMissions', () => {
     expect(chain.eq).toHaveBeenCalledWith('house_id', 'h1');
     expect(chain.eq).toHaveBeenCalledWith('assigned_to', 'mem1');
     expect(chain.eq).toHaveBeenCalledWith('status', 'assigned');
+    expect(result).toEqual([{ id: 'm1' }]);
+  });
+});
+
+describe('getMonthMissions', () => {
+  it('queries mission_instances within the given month, excluding rejected', async () => {
+    const chain = mockSelectChain({ data: [{ id: 'm1' }], error: null });
+    (supabase.from as jest.Mock).mockReturnValue(chain);
+    const result = await getMonthMissions('h1', 2026, 8);
+    expect(supabase.from).toHaveBeenCalledWith('mission_instances');
+    expect(chain.eq).toHaveBeenCalledWith('house_id', 'h1');
+    expect(chain.neq).toHaveBeenCalledWith('status', 'rejected');
+    expect(chain.gte).toHaveBeenCalledWith('due_date', '2026-08-01');
+    expect(chain.lte).toHaveBeenCalledWith('due_date', '2026-08-31');
     expect(result).toEqual([{ id: 'm1' }]);
   });
 });
@@ -150,13 +183,13 @@ describe('getMyMembership', () => {
 });
 
 describe('getSuggestions', () => {
-  it('queries mission_instances for pending or proposed-points rows', async () => {
+  it('queries mission_instances for pending or proposed-points or proposed-due-date rows', async () => {
     const chain = mockSelectChain({ data: [{ id: 'm1' }], error: null });
     (supabase.from as jest.Mock).mockReturnValue(chain);
     const result = await getSuggestions('h1');
     expect(supabase.from).toHaveBeenCalledWith('mission_instances');
     expect(chain.eq).toHaveBeenCalledWith('house_id', 'h1');
-    expect(chain.or).toHaveBeenCalledWith('status.eq.pending_approval,proposed_points.not.is.null');
+    expect(chain.or).toHaveBeenCalledWith('status.eq.pending_approval,proposed_points.not.is.null,proposed_due_date.not.is.null');
     expect(result).toEqual([{ id: 'm1' }]);
   });
 });

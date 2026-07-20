@@ -10,6 +10,7 @@ export interface Mission {
   category: MissionCategory;
   points: number;
   proposed_points: number | null;
+  proposed_due_date: string | null;
   proposed_by: string | null;
   due_date: string;
   assigned_to: string | null;
@@ -53,8 +54,18 @@ export async function editMissionPoints(missionInstanceId: string, points: numbe
   return data;
 }
 
+export async function editMissionSchedule(missionInstanceId: string, dueDate: string): Promise<{ mission: Mission }> {
+  const { data, error } = await supabase.functions.invoke('edit-mission-schedule', {
+    body: { mission_instance_id: missionInstanceId, due_date: dueDate },
+  });
+  if (error) {
+    return throwFromInvokeError(data, error);
+  }
+  return data;
+}
+
 export async function resolveSuggestion(
-  suggestionType: 'new_mission' | 'points_edit',
+  suggestionType: 'new_mission' | 'points_edit' | 'schedule_edit',
   missionInstanceId: string,
   decision: 'approve' | 'reject'
 ): Promise<{ mission: Mission }> {
@@ -90,12 +101,31 @@ export async function getTodayMissions(houseId: string, memberId: string): Promi
   return (data ?? []) as Mission[];
 }
 
+export async function getMonthMissions(houseId: string, year: number, month: number): Promise<Mission[]> {
+  const monthStr = String(month).padStart(2, '0');
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const start = `${year}-${monthStr}-01`;
+  const end = `${year}-${monthStr}-${String(daysInMonth).padStart(2, '0')}`;
+
+  const { data, error } = await supabase
+    .from('mission_instances')
+    .select('*')
+    .eq('house_id', houseId)
+    .neq('status', 'rejected')
+    .gte('due_date', start)
+    .lte('due_date', end);
+  if (error) {
+    throw new Error(error.message);
+  }
+  return (data ?? []) as Mission[];
+}
+
 export async function getSuggestions(houseId: string): Promise<Mission[]> {
   const { data, error } = await supabase
     .from('mission_instances')
     .select('*')
     .eq('house_id', houseId)
-    .or('status.eq.pending_approval,proposed_points.not.is.null');
+    .or('status.eq.pending_approval,proposed_points.not.is.null,proposed_due_date.not.is.null');
   if (error) {
     throw new Error(error.message);
   }

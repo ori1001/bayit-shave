@@ -1,16 +1,21 @@
 {
   "expo": {
-    "name": "TODO",
-    "slug": "TODO",
+    "name": "בית שווה",
+    "slug": "bayit-shave",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "todo",
+    "scheme": "bayitshave",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "bundleIdentifier": "com.orianvar.bayitshave",
+      "buildNumber": "1",
+      "supportsTablet": false
     },
     "android": {
+      "package": "com.orianvar.bayitshave",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

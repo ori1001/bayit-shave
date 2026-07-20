@@ -1,9 +1,14 @@
 import { useEffect, useState } from 'react';
-import { View, Text, Pressable, FlatList, TextInput } from 'react-native';
+import { View, Text, FlatList, TextInput, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { getMyHouseId, getMyMembership, getTodayMissions, getHouseMembers, completeMission, editMissionPoints, type Mission } from '../features/missions/api';
 import { getMyIncomingSwaps, suggestSwap, respondSwap, type SwapRequest } from '../features/requests/api';
+import { AnimatedPressable } from '../components/AnimatedPressable';
+import { Card } from '../components/Card';
+import { CategoryIcon } from '../components/CategoryIcon';
+import { colors, spacing, radii } from '../theme';
 
 export default function TodayScreen() {
   const { t } = useTranslation();
@@ -85,127 +90,271 @@ export default function TodayScreen() {
   }
 
   if (loading) {
-    return <View style={{ flex: 1 }} />;
+    return <View style={{ flex: 1, backgroundColor: colors.background }} />;
   }
 
   return (
-    <View style={{ flex: 1, padding: 24, gap: 16 }}>
-      <Text style={{ fontSize: 26, fontWeight: '800' }}>{t('today.greeting')}</Text>
+    <View style={styles.screen}>
+      <Text style={styles.greeting}>{t('today.greeting')}</Text>
       {incomingSwaps.length > 0 && (
-        <View style={{ gap: 8 }}>
-          <Text style={{ fontWeight: '700' }}>{t('swap.incomingTitle')}</Text>
+        <Card style={styles.swapCard}>
+          <Text style={styles.sectionTitle}>{t('swap.incomingTitle')}</Text>
           {incomingSwaps.map((swap) => (
-            <View key={swap.id} testID={`incoming-swap-${swap.id}`} style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-              <Text style={{ flex: 1 }}>{members.find((m) => m.id === swap.from_member)?.name ?? swap.from_member}</Text>
-              <Pressable onPress={() => handleRespondSwap(swap.id, 'accept')} testID={`accept-swap-${swap.id}`} style={{ padding: 8 }}>
-                <Text style={{ color: '#7C9473', fontWeight: '700' }}>{t('swap.accept')}</Text>
-              </Pressable>
-              <Pressable onPress={() => handleRespondSwap(swap.id, 'decline')} testID={`decline-swap-${swap.id}`} style={{ padding: 8 }}>
-                <Text style={{ color: '#A6425A', fontWeight: '700' }}>{t('swap.decline')}</Text>
-              </Pressable>
+            <View key={swap.id} testID={`incoming-swap-${swap.id}`} style={styles.swapRow}>
+              <Text style={styles.swapFromName}>{members.find((m) => m.id === swap.from_member)?.name ?? swap.from_member}</Text>
+              <AnimatedPressable onPress={() => handleRespondSwap(swap.id, 'accept')} testID={`accept-swap-${swap.id}`} style={styles.iconButton}>
+                <Ionicons name="checkmark-circle" size={22} color={colors.sage} />
+              </AnimatedPressable>
+              <AnimatedPressable onPress={() => handleRespondSwap(swap.id, 'decline')} testID={`decline-swap-${swap.id}`} style={styles.iconButton}>
+                <Ionicons name="close-circle" size={22} color={colors.rose} />
+              </AnimatedPressable>
             </View>
           ))}
-        </View>
+        </Card>
       )}
-      {pointsEditFeedback && <Text testID="points-edit-feedback">{pointsEditFeedback}</Text>}
-      {pointsEditError && <Text testID="points-edit-error">{pointsEditError}</Text>}
+      {pointsEditFeedback && (
+        <Text testID="points-edit-feedback" style={styles.feedbackText}>
+          {pointsEditFeedback}
+        </Text>
+      )}
+      {pointsEditError && (
+        <Text testID="points-edit-error" style={styles.errorText}>
+          {pointsEditError}
+        </Text>
+      )}
       <FlatList
         data={missions}
         keyExtractor={(m) => m.id}
-        ListEmptyComponent={<Text style={{ opacity: 0.6 }}>{t('today.noMissions')}</Text>}
+        contentContainerStyle={{ gap: spacing.sm }}
+        ListEmptyComponent={<Text style={styles.emptyText}>{t('today.noMissions')}</Text>}
         renderItem={({ item }) => (
-          <View style={{ gap: 6 }}>
-            <Pressable
-              onPress={() => handleComplete(item.id)}
-              testID={`mission-row-${item.id}`}
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10 }}
-            >
-              <View style={{ width: 22, height: 22, borderRadius: 7, borderWidth: 2 }} />
-              <Text style={{ flex: 1, fontWeight: '700' }}>{item.title}</Text>
-              <Text>{item.points}</Text>
-              <Pressable onPress={() => startEditPoints(item)} testID={`edit-points-${item.id}`} style={{ padding: 4 }}>
-                <Text style={{ fontSize: 12, opacity: 0.6 }}>{t('missions.editPoints')}</Text>
-              </Pressable>
-              <Pressable onPress={() => setSwappingMissionId(item.id)} testID={`swap-${item.id}`} style={{ padding: 4 }}>
-                <Text style={{ fontSize: 12, opacity: 0.6 }}>{t('swap.requestSwap')}</Text>
-              </Pressable>
-            </Pressable>
+          <View style={{ gap: spacing.xs }}>
+            <AnimatedPressable onPress={() => handleComplete(item.id)} testID={`mission-row-${item.id}`}>
+              <Card style={styles.missionCard}>
+                <CategoryIcon category={item.category} />
+                <Text style={styles.missionTitle}>{item.title}</Text>
+                <Text style={styles.missionPoints}>{item.points}</Text>
+                <AnimatedPressable onPress={() => startEditPoints(item)} testID={`edit-points-${item.id}`} style={styles.smallAction}>
+                  <Text style={styles.smallActionText}>{t('missions.editPoints')}</Text>
+                </AnimatedPressable>
+                <AnimatedPressable onPress={() => setSwappingMissionId(item.id)} testID={`swap-${item.id}`} style={styles.smallAction}>
+                  <Ionicons name="swap-horizontal-outline" size={16} color={colors.textMuted} />
+                </AnimatedPressable>
+              </Card>
+            </AnimatedPressable>
             {editingMissionId === item.id && (
-              <View style={{ flexDirection: 'row', gap: 8, paddingStart: 32 }}>
+              <View style={styles.inlineEditRow}>
                 <TextInput
                   value={editPointsValue}
                   onChangeText={setEditPointsValue}
                   keyboardType="numeric"
                   testID={`edit-points-input-${item.id}`}
-                  style={{ borderWidth: 1, borderRadius: 8, padding: 8, width: 80 }}
+                  style={styles.inlineInput}
                 />
-                <Pressable onPress={() => handleSaveEditPoints(item.id)} testID={`edit-points-save-${item.id}`} style={{ padding: 8 }}>
-                  <Text>{t('missions.save')}</Text>
-                </Pressable>
-                <Pressable onPress={() => setEditingMissionId(null)} testID={`edit-points-cancel-${item.id}`} style={{ padding: 8 }}>
-                  <Text>{t('missions.cancel')}</Text>
-                </Pressable>
+                <AnimatedPressable onPress={() => handleSaveEditPoints(item.id)} testID={`edit-points-save-${item.id}`} style={styles.smallAction}>
+                  <Text style={styles.saveText}>{t('missions.save')}</Text>
+                </AnimatedPressable>
+                <AnimatedPressable onPress={() => setEditingMissionId(null)} testID={`edit-points-cancel-${item.id}`} style={styles.smallAction}>
+                  <Text style={styles.cancelText}>{t('missions.cancel')}</Text>
+                </AnimatedPressable>
               </View>
             )}
             {swappingMissionId === item.id && (
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingStart: 32 }}>
-                <Text style={{ width: '100%', fontSize: 12, opacity: 0.6 }}>{t('swap.selectMember')}</Text>
+              <View style={styles.swapTargetRow}>
+                <Text style={styles.swapTargetLabel}>{t('swap.selectMember')}</Text>
                 {members
                   .filter((m) => m.id !== myMemberId)
                   .map((m) => (
-                    <Pressable
+                    <AnimatedPressable
                       key={m.id}
                       onPress={() => handleRequestSwap(item.id, m.id)}
                       testID={`swap-target-${item.id}-${m.id}`}
-                      style={{ borderWidth: 1, borderRadius: 8, padding: 6 }}
+                      style={styles.chip}
                     >
-                      <Text style={{ fontSize: 11 }}>{m.name}</Text>
-                    </Pressable>
+                      <Text style={styles.chipText}>{m.name}</Text>
+                    </AnimatedPressable>
                   ))}
               </View>
             )}
           </View>
         )}
       />
-      <View style={{ gap: 10 }}>
-        <Pressable
+      <View style={{ gap: spacing.sm }}>
+        <AnimatedPressable
           onPress={() => router.push({ pathname: '/missions/suggest', params: { houseId: houseId ?? '' } })}
           testID="today-suggest-mission"
-          style={{ backgroundColor: '#26332E', borderRadius: 14, padding: 14, alignItems: 'center' }}
+          style={styles.primaryButton}
         >
-          <Text style={{ color: '#F6F1E4', fontWeight: '700' }}>{t('today.suggestMission')}</Text>
-        </Pressable>
-        <Pressable
+          <Ionicons name="add-circle-outline" size={18} color={colors.cream} />
+          <Text style={styles.primaryButtonText}>{t('today.suggestMission')}</Text>
+        </AnimatedPressable>
+        <AnimatedPressable
           onPress={() => router.push({ pathname: '/balance', params: { houseId: houseId ?? '' } })}
           testID="today-balance"
-          style={{ borderWidth: 1.5, borderColor: '#4C7A8C', borderRadius: 14, padding: 14, alignItems: 'center' }}
+          style={[styles.secondaryButton, { borderColor: colors.teal }]}
         >
-          <Text style={{ color: '#4C7A8C', fontWeight: '700' }}>{t('today.balance')}</Text>
-        </Pressable>
-        <Pressable
+          <Ionicons name="stats-chart-outline" size={18} color={colors.teal} />
+          <Text style={[styles.secondaryButtonText, { color: colors.teal }]}>{t('today.balance')}</Text>
+        </AnimatedPressable>
+        <AnimatedPressable
           onPress={() => router.push({ pathname: '/unavailability/suggest', params: { houseId: houseId ?? '' } })}
           testID="today-unavailability"
-          style={{ borderWidth: 1.5, borderColor: '#8B5FBF', borderRadius: 14, padding: 14, alignItems: 'center' }}
+          style={[styles.secondaryButton, { borderColor: colors.violet }]}
         >
-          <Text style={{ color: '#8B5FBF', fontWeight: '700' }}>{t('today.unavailability')}</Text>
-        </Pressable>
-        <Pressable
+          <Ionicons name="airplane-outline" size={18} color={colors.violet} />
+          <Text style={[styles.secondaryButtonText, { color: colors.violet }]}>{t('today.unavailability')}</Text>
+        </AnimatedPressable>
+        <AnimatedPressable
           onPress={() => router.push({ pathname: '/calendar', params: { houseId: houseId ?? '' } })}
           testID="today-calendar"
-          style={{ borderWidth: 1.5, borderColor: '#5B72C9', borderRadius: 14, padding: 14, alignItems: 'center' }}
+          style={[styles.secondaryButton, { borderColor: colors.indigo }]}
         >
-          <Text style={{ color: '#5B72C9', fontWeight: '700' }}>{t('today.calendar')}</Text>
-        </Pressable>
+          <Ionicons name="calendar-outline" size={18} color={colors.indigo} />
+          <Text style={[styles.secondaryButtonText, { color: colors.indigo }]}>{t('today.calendar')}</Text>
+        </AnimatedPressable>
         {isAdmin && (
-          <Pressable
+          <AnimatedPressable
             onPress={() => router.push({ pathname: '/missions/suggestions', params: { houseId: houseId ?? '' } })}
             testID="today-suggestions-inbox"
-            style={{ borderWidth: 1.5, borderColor: '#26332E', borderRadius: 14, padding: 14, alignItems: 'center' }}
+            style={[styles.secondaryButton, { borderColor: colors.ink }]}
           >
-            <Text style={{ color: '#26332E', fontWeight: '700' }}>{t('today.suggestions')}</Text>
-          </Pressable>
+            <Ionicons name="file-tray-full-outline" size={18} color={colors.ink} />
+            <Text style={[styles.secondaryButtonText, { color: colors.ink }]}>{t('today.suggestions')}</Text>
+          </AnimatedPressable>
         )}
       </View>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    padding: spacing.xl,
+    gap: spacing.lg,
+    backgroundColor: colors.background,
+  },
+  greeting: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: colors.ink,
+  },
+  sectionTitle: {
+    fontWeight: '700',
+    color: colors.ink,
+  },
+  swapCard: {
+    gap: spacing.sm,
+  },
+  swapRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    alignItems: 'center',
+  },
+  swapFromName: {
+    flex: 1,
+    color: colors.ink,
+  },
+  iconButton: {
+    padding: spacing.xs,
+  },
+  feedbackText: {
+    color: colors.sage,
+  },
+  errorText: {
+    color: colors.rose,
+  },
+  emptyText: {
+    color: colors.textMuted,
+  },
+  missionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  missionTitle: {
+    flex: 1,
+    fontWeight: '700',
+    color: colors.ink,
+  },
+  missionPoints: {
+    color: colors.textMuted,
+    fontWeight: '700',
+  },
+  smallAction: {
+    padding: spacing.xs,
+  },
+  smallActionText: {
+    fontSize: 12,
+    color: colors.textMuted,
+  },
+  inlineEditRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    paddingStart: 32,
+    alignItems: 'center',
+  },
+  inlineInput: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.sm,
+    padding: spacing.sm,
+    width: 80,
+    backgroundColor: colors.surface,
+  },
+  saveText: {
+    color: colors.sage,
+    fontWeight: '700',
+  },
+  cancelText: {
+    color: colors.rose,
+    fontWeight: '700',
+  },
+  swapTargetRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    paddingStart: 32,
+  },
+  swapTargetLabel: {
+    width: '100%',
+    fontSize: 12,
+    color: colors.textMuted,
+  },
+  chip: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.sm,
+    padding: spacing.sm,
+    backgroundColor: colors.surface,
+  },
+  chipText: {
+    fontSize: 11,
+    color: colors.ink,
+  },
+  primaryButton: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.ink,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+  },
+  primaryButtonText: {
+    color: colors.cream,
+    fontWeight: '700',
+  },
+  secondaryButton: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderWidth: 1.5,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+  },
+  secondaryButtonText: {
+    fontWeight: '700',
+  },
+});

@@ -14,7 +14,7 @@ Deno.serve(async (req) => {
   if (!suggestion_type || !mission_instance_id || !decision) {
     return new Response(JSON.stringify({ error: 'missing_required_fields' }), { status: 400 });
   }
-  if (suggestion_type !== 'new_mission' && suggestion_type !== 'points_edit') {
+  if (suggestion_type !== 'new_mission' && suggestion_type !== 'points_edit' && suggestion_type !== 'schedule_edit') {
     return new Response(JSON.stringify({ error: 'invalid_suggestion_type' }), { status: 400 });
   }
   if (decision !== 'approve' && decision !== 'reject') {
@@ -74,7 +74,7 @@ Deno.serve(async (req) => {
             approved_at: new Date().toISOString(),
           }
         : { status: 'rejected', approved_by: callerMember.id, approved_at: new Date().toISOString() };
-  } else {
+  } else if (suggestion_type === 'points_edit') {
     if (mission.proposed_points === null || mission.proposed_points === undefined) {
       return new Response(JSON.stringify({ error: 'no_pending_points_edit' }), { status: 409 });
     }
@@ -88,6 +88,20 @@ Deno.serve(async (req) => {
             approved_at: new Date().toISOString(),
           }
         : { proposed_points: null, proposed_by: null };
+  } else {
+    if (!mission.proposed_due_date) {
+      return new Response(JSON.stringify({ error: 'no_pending_schedule_edit' }), { status: 409 });
+    }
+    updatePayload =
+      decision === 'approve'
+        ? {
+            due_date: mission.proposed_due_date,
+            proposed_due_date: null,
+            proposed_by: null,
+            approved_by: callerMember.id,
+            approved_at: new Date().toISOString(),
+          }
+        : { proposed_due_date: null, proposed_by: null };
   }
 
   const { data: updated, error: updateError } = await admin

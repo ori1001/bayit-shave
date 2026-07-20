@@ -274,3 +274,62 @@ Deno.test('complete-mission: completing twice is rejected the second time', asyn
     .maybeSingle();
   assertEquals(ledgerAfterSecond?.points_earned, 5);
 });
+
+Deno.test('resolve-suggestion: approving a schedule_edit copies proposed_due_date into due_date', async () => {
+  const { house, adminToken, memberToken, member } = await seedHouseWithAdminAndMember();
+  const createRes = await fetch(`${FUNCTIONS_URL}/suggest-mission`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      house_id: house.id,
+      category: 'trash',
+      title: 'Take out trash',
+      points: 10,
+      due_date: '2026-07-25',
+      assignment_mode: 'direct',
+      target_member_id: member.id,
+    }),
+  });
+  const { mission: created } = await createRes.json();
+
+  await fetch(`${FUNCTIONS_URL}/edit-mission-schedule`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${memberToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mission_instance_id: created.id, due_date: '2026-08-02' }),
+  });
+
+  const approveRes = await fetch(`${FUNCTIONS_URL}/resolve-suggestion`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ suggestion_type: 'schedule_edit', mission_instance_id: created.id, decision: 'approve' }),
+  });
+  assertEquals(approveRes.status, 200);
+  const { mission: approved } = await approveRes.json();
+  assertEquals(approved.due_date, '2026-08-02');
+  assertEquals(approved.proposed_due_date, null);
+});
+
+Deno.test('resolve-suggestion: rejecting a schedule_edit with nothing pending returns 409', async () => {
+  const { house, adminToken, member } = await seedHouseWithAdminAndMember();
+  const createRes = await fetch(`${FUNCTIONS_URL}/suggest-mission`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      house_id: house.id,
+      category: 'garden',
+      title: 'Water plants',
+      points: 6,
+      due_date: '2026-07-25',
+      assignment_mode: 'direct',
+      target_member_id: member.id,
+    }),
+  });
+  const { mission: created } = await createRes.json();
+
+  const rejectRes = await fetch(`${FUNCTIONS_URL}/resolve-suggestion`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ suggestion_type: 'schedule_edit', mission_instance_id: created.id, decision: 'reject' }),
+  });
+  assertEquals(rejectRes.status, 409);
+});

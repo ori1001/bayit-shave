@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
-import { View, Text, TextInput, Pressable, ScrollView } from 'react-native';
+import { View, Text, TextInput, ScrollView, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { suggestMission, getHouseMembers, type MissionCategory, type AssignmentMode } from '../../features/missions/api';
-
-const CATEGORIES: MissionCategory[] = ['dishes', 'clean', 'laundry', 'trash', 'shop', 'pets', 'garden', 'bath', 'other'];
+import { AnimatedPressable } from '../../components/AnimatedPressable';
+import { CategoryIcon } from '../../components/CategoryIcon';
+import { colors, spacing, radii, MISSION_CATEGORIES } from '../../theme';
 
 export default function SuggestMissionScreen() {
   const { t } = useTranslation();
@@ -53,103 +55,188 @@ export default function SuggestMissionScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 24, gap: 12 }}>
-      <Text style={{ fontSize: 22, fontWeight: '800' }}>{t('missions.suggestTitle')}</Text>
+    <ScrollView contentContainerStyle={styles.screen}>
+      <Text style={styles.title}>{t('missions.suggestTitle')}</Text>
 
-      <Text>{t('missions.categoryLabel')}</Text>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-        {CATEGORIES.map((cat) => (
-          <Pressable
+      <Text style={styles.label}>{t('missions.categoryLabel')}</Text>
+      <View style={styles.chipRow}>
+        {MISSION_CATEGORIES.map((cat) => (
+          <AnimatedPressable
             key={cat}
             onPress={() => setCategory(cat)}
             testID={`category-${cat}`}
-            style={{
-              paddingVertical: 8,
-              paddingHorizontal: 12,
-              borderRadius: 10,
-              borderWidth: 1.5,
-              borderColor: category === cat ? '#26332E' : '#ccc',
-              backgroundColor: category === cat ? '#26332E' : 'transparent',
-            }}
+            style={[styles.categoryChip, category === cat && styles.categoryChipActive]}
           >
-            <Text style={{ color: category === cat ? '#F6F1E4' : '#26332E' }}>{t(`missions.categories.${cat}`)}</Text>
-          </Pressable>
+            <CategoryIcon category={cat} size={16} />
+            <Text style={[styles.categoryChipText, category === cat && styles.categoryChipTextActive]}>{t(`missions.categories.${cat}`)}</Text>
+          </AnimatedPressable>
         ))}
       </View>
 
-      <Text>{t('missions.titleLabel')}</Text>
-      <TextInput value={title} onChangeText={setTitle} testID="mission-title-input" style={{ borderWidth: 1, borderRadius: 12, padding: 12 }} />
+      <Text style={styles.label}>{t('missions.titleLabel')}</Text>
+      <TextInput value={title} onChangeText={setTitle} testID="mission-title-input" style={styles.input} />
 
-      <Text>{t('missions.pointsLabel')}</Text>
-      <TextInput
-        value={points}
-        onChangeText={setPoints}
-        keyboardType="numeric"
-        testID="mission-points-input"
-        style={{ borderWidth: 1, borderRadius: 12, padding: 12 }}
-      />
+      <Text style={styles.label}>{t('missions.pointsLabel')}</Text>
+      <TextInput value={points} onChangeText={setPoints} keyboardType="numeric" testID="mission-points-input" style={styles.input} />
 
-      <Text>{t('missions.dueDateLabel')}</Text>
-      <TextInput
-        value={dueDate}
-        onChangeText={setDueDate}
-        placeholder="2026-07-20"
-        testID="mission-due-date-input"
-        style={{ borderWidth: 1, borderRadius: 12, padding: 12 }}
-      />
+      <Text style={styles.label}>{t('missions.dueDateLabel')}</Text>
+      <TextInput value={dueDate} onChangeText={setDueDate} placeholder="2026-07-20" testID="mission-due-date-input" style={styles.input} />
 
-      <View style={{ flexDirection: 'row', gap: 8 }}>
-        <Pressable
+      <View style={styles.toggleRow}>
+        <AnimatedPressable
           onPress={() => setAssignmentMode('auto')}
           testID="assignment-pool"
-          style={{ flex: 1, padding: 10, borderRadius: 10, alignItems: 'center', backgroundColor: assignmentMode === 'auto' ? '#26332E' : 'transparent', borderWidth: 1.5, borderColor: '#26332E' }}
+          style={[styles.toggleOption, assignmentMode === 'auto' && styles.toggleOptionActive]}
         >
-          <Text style={{ color: assignmentMode === 'auto' ? '#F6F1E4' : '#26332E' }}>{t('missions.assignmentPool')}</Text>
-        </Pressable>
-        <Pressable
+          <Text style={[styles.toggleOptionText, assignmentMode === 'auto' && styles.toggleOptionTextActive]}>{t('missions.assignmentPool')}</Text>
+        </AnimatedPressable>
+        <AnimatedPressable
           onPress={() => setAssignmentMode('direct')}
           testID="assignment-direct"
-          style={{ flex: 1, padding: 10, borderRadius: 10, alignItems: 'center', backgroundColor: assignmentMode === 'direct' ? '#26332E' : 'transparent', borderWidth: 1.5, borderColor: '#26332E' }}
+          style={[styles.toggleOption, assignmentMode === 'direct' && styles.toggleOptionActive]}
         >
-          <Text style={{ color: assignmentMode === 'direct' ? '#F6F1E4' : '#26332E' }}>{t('missions.assignmentDirect')}</Text>
-        </Pressable>
+          <Text style={[styles.toggleOptionText, assignmentMode === 'direct' && styles.toggleOptionTextActive]}>{t('missions.assignmentDirect')}</Text>
+        </AnimatedPressable>
       </View>
 
       {assignmentMode === 'direct' && (
-        <View style={{ gap: 8 }}>
-          <Text>{t('missions.selectMember')}</Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+        <View style={{ gap: spacing.sm }}>
+          <Text style={styles.label}>{t('missions.selectMember')}</Text>
+          <View style={styles.chipRow}>
             {members.map((m) => (
-              <Pressable
+              <AnimatedPressable
                 key={m.id}
                 onPress={() => setSelectedMemberId(m.id)}
                 testID={`member-${m.id}`}
-                style={{
-                  paddingVertical: 8,
-                  paddingHorizontal: 12,
-                  borderRadius: 10,
-                  borderWidth: 1.5,
-                  borderColor: selectedMemberId === m.id ? '#26332E' : '#ccc',
-                  backgroundColor: selectedMemberId === m.id ? '#26332E' : 'transparent',
-                }}
+                style={[styles.memberChip, selectedMemberId === m.id && styles.memberChipActive]}
               >
-                <Text style={{ color: selectedMemberId === m.id ? '#F6F1E4' : '#26332E' }}>{m.name}</Text>
-              </Pressable>
+                <Text style={[styles.memberChipText, selectedMemberId === m.id && styles.memberChipTextActive]}>{m.name}</Text>
+              </AnimatedPressable>
             ))}
           </View>
         </View>
       )}
 
-      {error && <Text testID="suggest-mission-error">{error}</Text>}
+      {error && (
+        <Text testID="suggest-mission-error" style={styles.errorText}>
+          {error}
+        </Text>
+      )}
 
-      <Pressable
+      <AnimatedPressable
         onPress={handleSubmit}
         disabled={submitting || !title || !points || !dueDate || (assignmentMode === 'direct' && !selectedMemberId)}
         testID="suggest-mission-submit"
-        style={{ backgroundColor: '#E0A845', borderRadius: 14, padding: 14, alignItems: 'center' }}
+        style={styles.submitButton}
       >
-        <Text style={{ fontWeight: '800' }}>{t('missions.submit')}</Text>
-      </Pressable>
+        <Ionicons name="add-circle-outline" size={18} color={colors.ink} />
+        <Text style={styles.submitButtonText}>{t('missions.submit')}</Text>
+      </AnimatedPressable>
     </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  screen: {
+    padding: spacing.xl,
+    gap: spacing.md,
+    backgroundColor: colors.background,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: colors.ink,
+  },
+  label: {
+    color: colors.textMuted,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  categoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radii.md,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  categoryChipActive: {
+    borderColor: colors.ink,
+    backgroundColor: colors.ink,
+  },
+  categoryChipText: {
+    color: colors.ink,
+  },
+  categoryChipTextActive: {
+    color: colors.cream,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    padding: spacing.md,
+    backgroundColor: colors.surface,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  toggleOption: {
+    flex: 1,
+    padding: spacing.sm,
+    borderRadius: radii.md,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+    backgroundColor: 'transparent',
+  },
+  toggleOptionActive: {
+    backgroundColor: colors.ink,
+  },
+  toggleOptionText: {
+    color: colors.ink,
+  },
+  toggleOptionTextActive: {
+    color: colors.cream,
+  },
+  memberChip: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radii.md,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  memberChipActive: {
+    borderColor: colors.ink,
+    backgroundColor: colors.ink,
+  },
+  memberChipText: {
+    color: colors.ink,
+  },
+  memberChipTextActive: {
+    color: colors.cream,
+  },
+  errorText: {
+    color: colors.rose,
+  },
+  submitButton: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.amber,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+  },
+  submitButtonText: {
+    color: colors.ink,
+    fontWeight: '800',
+  },
+});

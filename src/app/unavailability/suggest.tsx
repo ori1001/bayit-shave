@@ -1,8 +1,11 @@
 import { useState } from 'react';
-import { View, Text, TextInput, Pressable } from 'react-native';
+import { View, Text, TextInput, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { suggestUnavailability } from '../../features/requests/api';
+import { AnimatedPressable } from '../../components/AnimatedPressable';
+import { colors, spacing, radii } from '../../theme';
 
 export default function SuggestUnavailabilityScreen() {
   const { t } = useTranslation();
@@ -29,45 +32,72 @@ export default function SuggestUnavailabilityScreen() {
   }
 
   return (
-    <View style={{ flex: 1, padding: 24, gap: 12 }}>
-      <Text style={{ fontSize: 22, fontWeight: '800' }}>{t('unavailability.title')}</Text>
+    <View style={styles.screen}>
+      <View style={styles.header}>
+        <Ionicons name="airplane-outline" size={26} color={colors.violet} />
+        <Text style={styles.title}>{t('unavailability.title')}</Text>
+      </View>
 
-      <Text>{t('unavailability.periodStartLabel')}</Text>
-      <TextInput
-        value={periodStart}
-        onChangeText={setPeriodStart}
-        placeholder="2026-08-01"
-        testID="unavailability-start-input"
-        style={{ borderWidth: 1, borderRadius: 12, padding: 12 }}
-      />
+      <Text style={styles.label}>{t('unavailability.periodStartLabel')}</Text>
+      <TextInput value={periodStart} onChangeText={setPeriodStart} placeholder="2026-08-01" testID="unavailability-start-input" style={styles.input} />
 
-      <Text>{t('unavailability.periodEndLabel')}</Text>
-      <TextInput
-        value={periodEnd}
-        onChangeText={setPeriodEnd}
-        placeholder="2026-08-05"
-        testID="unavailability-end-input"
-        style={{ borderWidth: 1, borderRadius: 12, padding: 12 }}
-      />
+      <Text style={styles.label}>{t('unavailability.periodEndLabel')}</Text>
+      <TextInput value={periodEnd} onChangeText={setPeriodEnd} placeholder="2026-08-05" testID="unavailability-end-input" style={styles.input} />
 
-      <Text>{t('unavailability.reasonLabel')}</Text>
-      <TextInput
-        value={reason}
-        onChangeText={setReason}
-        testID="unavailability-reason-input"
-        style={{ borderWidth: 1, borderRadius: 12, padding: 12 }}
-      />
+      <Text style={styles.label}>{t('unavailability.reasonLabel')}</Text>
+      <TextInput value={reason} onChangeText={setReason} testID="unavailability-reason-input" style={styles.input} />
 
-      {error && <Text testID="unavailability-error">{error}</Text>}
+      {error && (
+        <Text testID="unavailability-error" style={styles.errorText}>
+          {error}
+        </Text>
+      )}
 
-      <Pressable
-        onPress={handleSubmit}
-        disabled={submitting || !periodStart || !periodEnd}
-        testID="unavailability-submit"
-        style={{ backgroundColor: '#4C7A8C', borderRadius: 14, padding: 14, alignItems: 'center' }}
-      >
-        <Text style={{ color: '#fff', fontWeight: '800' }}>{t('unavailability.submit')}</Text>
-      </Pressable>
+      <AnimatedPressable onPress={handleSubmit} disabled={submitting || !periodStart || !periodEnd} testID="unavailability-submit" style={styles.submitButton}>
+        <Text style={styles.submitButtonText}>{t('unavailability.submit')}</Text>
+      </AnimatedPressable>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    padding: spacing.xl,
+    gap: spacing.md,
+    backgroundColor: colors.background,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: colors.ink,
+  },
+  label: {
+    color: colors.textMuted,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    padding: spacing.md,
+    backgroundColor: colors.surface,
+  },
+  errorText: {
+    color: colors.rose,
+  },
+  submitButton: {
+    backgroundColor: colors.violet,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    alignItems: 'center',
+  },
+  submitButtonText: {
+    color: colors.surface,
+    fontWeight: '800',
+  },
+});

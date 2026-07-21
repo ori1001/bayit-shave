@@ -105,13 +105,13 @@ export default function CalendarScreen() {
       <Text style={styles.title}>{t('calendar.title')}</Text>
 
       <View style={styles.monthNav}>
-        <AnimatedPressable onPress={handlePrevMonth} testID="calendar-prev-month" style={styles.monthNavButton}>
+        <AnimatedPressable onPress={handlePrevMonth} testID="calendar-prev-month" style={styles.monthNavButton} accessibilityLabel={t('calendar.previousMonth')}>
           <Ionicons name="chevron-back" size={20} color={colors.ink} />
         </AnimatedPressable>
         <Text style={styles.monthLabel}>
           {year}-{String(month).padStart(2, '0')}
         </Text>
-        <AnimatedPressable onPress={handleNextMonth} testID="calendar-next-month" style={styles.monthNavButton}>
+        <AnimatedPressable onPress={handleNextMonth} testID="calendar-next-month" style={styles.monthNavButton} accessibilityLabel={t('calendar.nextMonth')}>
           <Ionicons name="chevron-forward" size={20} color={colors.ink} />
         </AnimatedPressable>
       </View>

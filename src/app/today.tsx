@@ -102,10 +102,10 @@ export default function TodayScreen() {
           {incomingSwaps.map((swap) => (
             <View key={swap.id} testID={`incoming-swap-${swap.id}`} style={styles.swapRow}>
               <Text style={styles.swapFromName}>{members.find((m) => m.id === swap.from_member)?.name ?? swap.from_member}</Text>
-              <AnimatedPressable onPress={() => handleRespondSwap(swap.id, 'accept')} testID={`accept-swap-${swap.id}`} style={styles.iconButton}>
+              <AnimatedPressable onPress={() => handleRespondSwap(swap.id, 'accept')} testID={`accept-swap-${swap.id}`} style={styles.iconButton} accessibilityLabel={t('swap.accept')}>
                 <Ionicons name="checkmark-circle" size={22} color={colors.sage} />
               </AnimatedPressable>
-              <AnimatedPressable onPress={() => handleRespondSwap(swap.id, 'decline')} testID={`decline-swap-${swap.id}`} style={styles.iconButton}>
+              <AnimatedPressable onPress={() => handleRespondSwap(swap.id, 'decline')} testID={`decline-swap-${swap.id}`} style={styles.iconButton} accessibilityLabel={t('swap.decline')}>
                 <Ionicons name="close-circle" size={22} color={colors.rose} />
               </AnimatedPressable>
             </View>
@@ -137,7 +137,7 @@ export default function TodayScreen() {
                 <AnimatedPressable onPress={() => startEditPoints(item)} testID={`edit-points-${item.id}`} style={styles.smallAction}>
                   <Text style={styles.smallActionText}>{t('missions.editPoints')}</Text>
                 </AnimatedPressable>
-                <AnimatedPressable onPress={() => setSwappingMissionId(item.id)} testID={`swap-${item.id}`} style={styles.smallAction}>
+                <AnimatedPressable onPress={() => setSwappingMissionId(item.id)} testID={`swap-${item.id}`} style={styles.smallAction} accessibilityLabel={t('swap.requestSwap')}>
                   <Ionicons name="swap-horizontal-outline" size={16} color={colors.textMuted} />
                 </AnimatedPressable>
               </Card>

@@ -90,6 +90,8 @@
   },
   "calendar": {
     "title": "לוח שנה",
+    "previousMonth": "חודש קודם",
+    "nextMonth": "חודש הבא",
     "mine": "שלי",
     "everyone": "כולם",
     "noMissionsThisDay": "אין משימות ביום זה",

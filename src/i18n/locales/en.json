@@ -90,6 +90,8 @@
   },
   "calendar": {
     "title": "Calendar",
+    "previousMonth": "Previous month",
+    "nextMonth": "Next month",
     "mine": "Mine",
     "everyone": "Everyone",
     "noMissionsThisDay": "No missions on this day",

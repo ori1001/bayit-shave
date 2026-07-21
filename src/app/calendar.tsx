@@ -1,26 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { View, Text, Pressable, TextInput, ScrollView } from 'react-native';
+import { View, Text, TextInput, ScrollView, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useLocalSearchParams } from 'expo-router';
-import {
-  getMonthMissions,
-  getHouseMembers,
-  getMyMembership,
-  editMissionSchedule,
-  type Mission,
-} from '../features/missions/api';
-
-const CATEGORY_COLORS: Record<string, string> = {
-  dishes: '#1F9E93',
-  clean: '#8B5FBF',
-  laundry: '#5B72C9',
-  trash: '#E0793A',
-  shop: '#D45A82',
-  pets: '#D99A2B',
-  garden: '#7AA23E',
-  bath: '#3FAFC9',
-  other: '#888888',
-};
+import { Ionicons } from '@expo/vector-icons';
+import { getMonthMissions, getHouseMembers, getMyMembership, editMissionSchedule, type Mission } from '../features/missions/api';
+import { AnimatedPressable } from '../components/AnimatedPressable';
+import { Card } from '../components/Card';
+import { CategoryIcon } from '../components/CategoryIcon';
+import { colors, spacing, radii, CATEGORY_META } from '../theme';
 
 export default function CalendarScreen() {
   const { t } = useTranslation();
@@ -37,16 +24,14 @@ export default function CalendarScreen() {
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [editingMissionId, setEditingMissionId] = useState<string | null>(null);
   const [newDateValue, setNewDateValue] = useState('');
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   async function load() {
     const membership = await getMyMembership(houseId);
     setMyMemberId(membership?.id ?? null);
     setIsAdmin(membership?.role === 'admin');
-    const [monthMissions, houseMembers] = await Promise.all([
-      getMonthMissions(houseId, year, month),
-      getHouseMembers(houseId),
-    ]);
+    const [monthMissions, houseMembers] = await Promise.all([getMonthMissions(houseId, year, month), getHouseMembers(houseId)]);
     setMissions(monthMissions);
     setMembers(houseMembers);
     setLoading(false);
@@ -56,10 +41,7 @@ export default function CalendarScreen() {
     load();
   }, [houseId, year, month]);
 
-  const visibleMissions = useMemo(
-    () => (mineOnly ? missions.filter((m) => m.assigned_to === myMemberId) : missions),
-    [missions, mineOnly, myMemberId]
-  );
+  const visibleMissions = useMemo(() => (mineOnly ? missions.filter((m) => m.assigned_to === myMemberId) : missions), [missions, mineOnly, myMemberId]);
 
   const missionsByDay = useMemo(() => {
     const map = new Map<number, Mission[]>();
@@ -96,128 +78,110 @@ export default function CalendarScreen() {
   }
 
   function startEditDate(mission: Mission) {
+    setScheduleError(null);
     setEditingMissionId(mission.id);
     setNewDateValue(mission.due_date);
   }
 
   async function handleSaveDate(missionId: string) {
-    await editMissionSchedule(missionId, newDateValue);
-    setEditingMissionId(null);
-    await load();
+    setScheduleError(null);
+    try {
+      await editMissionSchedule(missionId, newDateValue);
+      setEditingMissionId(null);
+      await load();
+    } catch (e) {
+      setScheduleError(e instanceof Error ? e.message : t('calendar.saveError'));
+    }
   }
 
   if (loading) {
-    return <View style={{ flex: 1 }} />;
+    return <View style={{ flex: 1, backgroundColor: colors.background }} />;
   }
 
   const selectedMissions = selectedDay !== null ? (missionsByDay.get(selectedDay) ?? []) : [];
 
   return (
-    <View style={{ flex: 1, padding: 24, gap: 12 }}>
-      <Text style={{ fontSize: 22, fontWeight: '800' }}>{t('calendar.title')}</Text>
+    <View style={styles.screen}>
+      <Text style={styles.title}>{t('calendar.title')}</Text>
 
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Pressable onPress={handlePrevMonth} testID="calendar-prev-month">
-          <Text style={{ fontSize: 18 }}>‹</Text>
-        </Pressable>
-        <Text style={{ fontWeight: '700' }}>
+      <View style={styles.monthNav}>
+        <AnimatedPressable onPress={handlePrevMonth} testID="calendar-prev-month" style={styles.monthNavButton}>
+          <Ionicons name="chevron-back" size={20} color={colors.ink} />
+        </AnimatedPressable>
+        <Text style={styles.monthLabel}>
           {year}-{String(month).padStart(2, '0')}
         </Text>
-        <Pressable onPress={handleNextMonth} testID="calendar-next-month">
-          <Text style={{ fontSize: 18 }}>›</Text>
-        </Pressable>
+        <AnimatedPressable onPress={handleNextMonth} testID="calendar-next-month" style={styles.monthNavButton}>
+          <Ionicons name="chevron-forward" size={20} color={colors.ink} />
+        </AnimatedPressable>
       </View>
 
-      <View style={{ flexDirection: 'row', gap: 8 }}>
-        <Pressable
-          onPress={() => setMineOnly(false)}
-          testID="calendar-everyone"
-          style={{ flex: 1, padding: 8, borderRadius: 10, alignItems: 'center', backgroundColor: !mineOnly ? '#26332E' : 'transparent', borderWidth: 1.5, borderColor: '#26332E' }}
-        >
-          <Text style={{ color: !mineOnly ? '#F6F1E4' : '#26332E' }}>{t('calendar.everyone')}</Text>
-        </Pressable>
-        <Pressable
-          onPress={() => setMineOnly(true)}
-          testID="calendar-mine"
-          style={{ flex: 1, padding: 8, borderRadius: 10, alignItems: 'center', backgroundColor: mineOnly ? '#26332E' : 'transparent', borderWidth: 1.5, borderColor: '#26332E' }}
-        >
-          <Text style={{ color: mineOnly ? '#F6F1E4' : '#26332E' }}>{t('calendar.mine')}</Text>
-        </Pressable>
+      <View style={styles.toggleRow}>
+        <AnimatedPressable onPress={() => setMineOnly(false)} testID="calendar-everyone" style={[styles.toggleOption, !mineOnly && styles.toggleOptionActive]}>
+          <Text style={[styles.toggleOptionText, !mineOnly && styles.toggleOptionTextActive]}>{t('calendar.everyone')}</Text>
+        </AnimatedPressable>
+        <AnimatedPressable onPress={() => setMineOnly(true)} testID="calendar-mine" style={[styles.toggleOption, mineOnly && styles.toggleOptionActive]}>
+          <Text style={[styles.toggleOptionText, mineOnly && styles.toggleOptionTextActive]}>{t('calendar.mine')}</Text>
+        </AnimatedPressable>
       </View>
 
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
+      <View style={styles.grid}>
         {dayNumbers.map((day) => {
           const dayMissions = missionsByDay.get(day) ?? [];
           return (
-            <Pressable
-              key={day}
-              onPress={() => setSelectedDay(day)}
-              testID={`calendar-day-${day}`}
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 8,
-                borderWidth: selectedDay === day ? 2 : 1,
-                borderColor: selectedDay === day ? '#26332E' : '#ccc',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 2,
-              }}
-            >
-              <Text style={{ fontSize: 11 }}>{day}</Text>
-              <View style={{ flexDirection: 'row', gap: 2 }}>
+            <AnimatedPressable key={day} onPress={() => setSelectedDay(day)} testID={`calendar-day-${day}`} style={[styles.dayCell, selectedDay === day && styles.dayCellSelected]}>
+              <Text style={styles.dayNumber}>{day}</Text>
+              <View style={styles.dotRow}>
                 {dayMissions.slice(0, 3).map((m, i) => (
-                  <View
-                    key={i}
-                    style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: CATEGORY_COLORS[m.category] ?? '#888' }}
-                  />
+                  <View key={i} style={[styles.dot, { backgroundColor: (CATEGORY_META[m.category] ?? CATEGORY_META.other).color }]} />
                 ))}
               </View>
-            </Pressable>
+            </AnimatedPressable>
           );
         })}
       </View>
 
       {selectedDay !== null && (
-        <ScrollView style={{ flex: 1, borderTopWidth: 1, borderColor: '#eee', paddingTop: 12 }}>
-          {selectedMissions.length === 0 && <Text style={{ opacity: 0.6 }}>{t('calendar.noMissionsThisDay')}</Text>}
+        <ScrollView style={styles.dayDetail} contentContainerStyle={{ gap: spacing.sm }}>
+          {selectedMissions.length === 0 && <Text style={styles.emptyText}>{t('calendar.noMissionsThisDay')}</Text>}
           {selectedMissions.map((mission) => {
             const canEdit = isAdmin || mission.assigned_to === myMemberId;
             const assigneeName = members.find((m) => m.id === mission.assigned_to)?.name ?? '';
             return (
-              <View key={mission.id} testID={`calendar-mission-${mission.id}`} style={{ gap: 4, paddingVertical: 8, borderBottomWidth: 1, borderColor: '#f0f0f0' }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: CATEGORY_COLORS[mission.category] ?? '#888' }} />
-                  <Text style={{ fontWeight: '700', flex: 1 }}>{mission.title}</Text>
-                  <Text style={{ fontSize: 12, opacity: 0.6 }}>{mission.points}</Text>
+              <Card key={mission.id} testID={`calendar-mission-${mission.id}`} style={styles.missionCard}>
+                <View style={styles.missionCardHeader}>
+                  <CategoryIcon category={mission.category} size={18} />
+                  <Text style={styles.missionCardTitle}>{mission.title}</Text>
+                  <Text style={styles.missionCardPoints}>{mission.points}</Text>
                 </View>
-                <Text style={{ fontSize: 12, opacity: 0.6 }}>{assigneeName}</Text>
+                <Text style={styles.assigneeText}>{assigneeName}</Text>
                 {canEdit ? (
-                  <Pressable onPress={() => startEditDate(mission)} testID={`calendar-edit-${mission.id}`}>
-                    <Text style={{ fontSize: 12, color: '#4C7A8C' }}>
-                      {isAdmin ? t('calendar.editDate') : t('calendar.suggestNewDate')}
-                    </Text>
-                  </Pressable>
+                  <AnimatedPressable onPress={() => startEditDate(mission)} testID={`calendar-edit-${mission.id}`}>
+                    <Text style={styles.editLink}>{isAdmin ? t('calendar.editDate') : t('calendar.suggestNewDate')}</Text>
+                  </AnimatedPressable>
                 ) : (
-                  <Text style={{ fontSize: 11, opacity: 0.4 }}>{t('calendar.viewOnly')}</Text>
+                  <Text style={styles.viewOnlyText}>{t('calendar.viewOnly')}</Text>
                 )}
                 {editingMissionId === mission.id && (
-                  <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-                    <TextInput
-                      value={newDateValue}
-                      onChangeText={setNewDateValue}
-                      testID={`calendar-date-input-${mission.id}`}
-                      style={{ borderWidth: 1, borderRadius: 8, padding: 6, width: 120 }}
-                    />
-                    <Pressable onPress={() => handleSaveDate(mission.id)} testID={`calendar-date-save-${mission.id}`}>
-                      <Text style={{ color: '#7C9473', fontWeight: '700' }}>{t('calendar.save')}</Text>
-                    </Pressable>
-                    <Pressable onPress={() => setEditingMissionId(null)} testID={`calendar-date-cancel-${mission.id}`}>
-                      <Text style={{ color: '#A6425A', fontWeight: '700' }}>{t('calendar.cancel')}</Text>
-                    </Pressable>
+                  <View style={{ gap: spacing.xs }}>
+                    <Text style={styles.dateInputLabel}>{t('calendar.newDateLabel')}</Text>
+                    <View style={styles.editRow}>
+                      <TextInput value={newDateValue} onChangeText={setNewDateValue} testID={`calendar-date-input-${mission.id}`} style={styles.dateInput} />
+                      <AnimatedPressable onPress={() => handleSaveDate(mission.id)} testID={`calendar-date-save-${mission.id}`}>
+                        <Text style={styles.saveText}>{t('calendar.save')}</Text>
+                      </AnimatedPressable>
+                      <AnimatedPressable onPress={() => setEditingMissionId(null)} testID={`calendar-date-cancel-${mission.id}`}>
+                        <Text style={styles.cancelText}>{t('calendar.cancel')}</Text>
+                      </AnimatedPressable>
+                    </View>
+                    {scheduleError && (
+                      <Text testID={`calendar-schedule-error-${mission.id}`} style={styles.errorText}>
+                        {scheduleError}
+                      </Text>
+                    )}
                   </View>
                 )}
-              </View>
+              </Card>
             );
           })}
         </ScrollView>
@@ -225,3 +189,151 @@ export default function CalendarScreen() {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    padding: spacing.xl,
+    gap: spacing.md,
+    backgroundColor: colors.background,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: colors.ink,
+  },
+  monthNav: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  monthNavButton: {
+    padding: spacing.xs,
+  },
+  monthLabel: {
+    fontWeight: '700',
+    color: colors.ink,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  toggleOption: {
+    flex: 1,
+    padding: spacing.sm,
+    borderRadius: radii.md,
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+  },
+  toggleOptionActive: {
+    backgroundColor: colors.ink,
+  },
+  toggleOptionText: {
+    color: colors.ink,
+  },
+  toggleOptionTextActive: {
+    color: colors.cream,
+  },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+  },
+  dayCell: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+    backgroundColor: colors.surface,
+  },
+  dayCellSelected: {
+    borderWidth: 2,
+    borderColor: colors.ink,
+  },
+  dayNumber: {
+    fontSize: 11,
+    color: colors.ink,
+  },
+  dotRow: {
+    flexDirection: 'row',
+    gap: 2,
+  },
+  dot: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+  },
+  dayDetail: {
+    flex: 1,
+    borderTopWidth: 1,
+    borderColor: colors.border,
+    paddingTop: spacing.md,
+  },
+  emptyText: {
+    color: colors.textMuted,
+  },
+  missionCard: {
+    gap: spacing.xs,
+  },
+  missionCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  missionCardTitle: {
+    fontWeight: '700',
+    flex: 1,
+    color: colors.ink,
+  },
+  missionCardPoints: {
+    fontSize: 12,
+    color: colors.textMuted,
+  },
+  assigneeText: {
+    fontSize: 12,
+    color: colors.textMuted,
+  },
+  editLink: {
+    fontSize: 12,
+    color: colors.teal,
+  },
+  viewOnlyText: {
+    fontSize: 11,
+    color: colors.textMuted,
+  },
+  dateInputLabel: {
+    fontSize: 11,
+    color: colors.textMuted,
+  },
+  editRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    alignItems: 'center',
+  },
+  dateInput: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.sm,
+    padding: spacing.xs,
+    width: 120,
+    backgroundColor: colors.surface,
+  },
+  saveText: {
+    color: colors.sage,
+    fontWeight: '700',
+  },
+  cancelText: {
+    color: colors.rose,
+    fontWeight: '700',
+  },
+  errorText: {
+    color: colors.rose,
+    fontSize: 12,
+  },
+});

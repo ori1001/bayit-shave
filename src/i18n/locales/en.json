@@ -98,6 +98,7 @@
     "newDateLabel": "New date (YYYY-MM-DD)",
     "save": "Save",
     "cancel": "Cancel",
-    "viewOnly": "View only"
+    "viewOnly": "View only",
+    "saveError": "Failed to save the date"
   }
 }

@@ -7,6 +7,7 @@ import { getMyMembership } from '../features/missions/api';
 import { getPointsPool, getOpenMissions, runBalance, assignMission, type PointsPoolEntry, type OpenMission } from '../features/balance/api';
 import { AnimatedPressable } from '../components/AnimatedPressable';
 import { Card } from '../components/Card';
+import { LoadErrorView } from '../components/LoadErrorView';
 import { colors, spacing, radii } from '../theme';
 
 export default function BalanceScreen() {
@@ -16,15 +17,23 @@ export default function BalanceScreen() {
   const [openMissions, setOpenMissions] = useState<OpenMission[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
 
   async function load() {
-    const membership = await getMyMembership(houseId);
-    setIsAdmin(membership?.role === 'admin');
-    const [poolRows, missions] = await Promise.all([getPointsPool(houseId), getOpenMissions(houseId)]);
-    setPool(poolRows);
-    setOpenMissions(missions);
-    setLoading(false);
+    setLoadError(null);
+    setLoading(true);
+    try {
+      const membership = await getMyMembership(houseId);
+      setIsAdmin(membership?.role === 'admin');
+      const [poolRows, missions] = await Promise.all([getPointsPool(houseId), getOpenMissions(houseId)]);
+      setPool(poolRows);
+      setOpenMissions(missions);
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : null);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -48,6 +57,10 @@ export default function BalanceScreen() {
 
   if (loading) {
     return <View style={{ flex: 1, backgroundColor: colors.background }} />;
+  }
+
+  if (loadError !== null) {
+    return <LoadErrorView message={loadError} onRetry={load} testID="balance-load-error" />;
   }
 
   return (

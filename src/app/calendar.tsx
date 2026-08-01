@@ -7,6 +7,7 @@ import { getMonthMissions, getHouseMembers, getMyMembership, editMissionSchedule
 import { AnimatedPressable } from '../components/AnimatedPressable';
 import { Card } from '../components/Card';
 import { CategoryIcon } from '../components/CategoryIcon';
+import { LoadErrorView } from '../components/LoadErrorView';
 import { colors, spacing, radii, CATEGORY_META } from '../theme';
 
 export default function CalendarScreen() {
@@ -26,15 +27,23 @@ export default function CalendarScreen() {
   const [newDateValue, setNewDateValue] = useState('');
   const [scheduleError, setScheduleError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   async function load() {
-    const membership = await getMyMembership(houseId);
-    setMyMemberId(membership?.id ?? null);
-    setIsAdmin(membership?.role === 'admin');
-    const [monthMissions, houseMembers] = await Promise.all([getMonthMissions(houseId, year, month), getHouseMembers(houseId)]);
-    setMissions(monthMissions);
-    setMembers(houseMembers);
-    setLoading(false);
+    setLoadError(null);
+    setLoading(true);
+    try {
+      const membership = await getMyMembership(houseId);
+      setMyMemberId(membership?.id ?? null);
+      setIsAdmin(membership?.role === 'admin');
+      const [monthMissions, houseMembers] = await Promise.all([getMonthMissions(houseId, year, month), getHouseMembers(houseId)]);
+      setMissions(monthMissions);
+      setMembers(houseMembers);
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : null);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -96,6 +105,10 @@ export default function CalendarScreen() {
 
   if (loading) {
     return <View style={{ flex: 1, backgroundColor: colors.background }} />;
+  }
+
+  if (loadError !== null) {
+    return <LoadErrorView message={loadError} onRetry={load} testID="calendar-load-error" />;
   }
 
   const selectedMissions = selectedDay !== null ? (missionsByDay.get(selectedDay) ?? []) : [];

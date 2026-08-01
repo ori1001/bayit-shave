@@ -8,6 +8,7 @@ import { getMyIncomingSwaps, suggestSwap, respondSwap, type SwapRequest } from '
 import { AnimatedPressable } from '../components/AnimatedPressable';
 import { Card } from '../components/Card';
 import { CategoryIcon } from '../components/CategoryIcon';
+import { LoadErrorView } from '../components/LoadErrorView';
 import { colors, spacing, radii } from '../theme';
 
 export default function TodayScreen() {
@@ -17,6 +18,7 @@ export default function TodayScreen() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [missions, setMissions] = useState<Mission[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [editingMissionId, setEditingMissionId] = useState<string | null>(null);
   const [editPointsValue, setEditPointsValue] = useState('');
   const [pointsEditFeedback, setPointsEditFeedback] = useState<string | null>(null);
@@ -27,26 +29,33 @@ export default function TodayScreen() {
   const [myMemberId, setMyMemberId] = useState<string | null>(null);
 
   async function load() {
-    const hId = await getMyHouseId();
-    if (!hId) {
-      router.replace('/');
-      return;
+    setLoadError(null);
+    setLoading(true);
+    try {
+      const hId = await getMyHouseId();
+      if (!hId) {
+        router.replace('/');
+        return;
+      }
+      setHouseId(hId);
+      const membership = await getMyMembership(hId);
+      setIsAdmin(membership?.role === 'admin');
+      if (membership) {
+        setMyMemberId(membership.id);
+        const [todayMissions, houseMembers, swaps] = await Promise.all([
+          getTodayMissions(hId, membership.id),
+          getHouseMembers(hId),
+          getMyIncomingSwaps(hId, membership.id),
+        ]);
+        setMissions(todayMissions);
+        setMembers(houseMembers);
+        setIncomingSwaps(swaps);
+      }
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : null);
+    } finally {
+      setLoading(false);
     }
-    setHouseId(hId);
-    const membership = await getMyMembership(hId);
-    setIsAdmin(membership?.role === 'admin');
-    if (membership) {
-      setMyMemberId(membership.id);
-      const [todayMissions, houseMembers, swaps] = await Promise.all([
-        getTodayMissions(hId, membership.id),
-        getHouseMembers(hId),
-        getMyIncomingSwaps(hId, membership.id),
-      ]);
-      setMissions(todayMissions);
-      setMembers(houseMembers);
-      setIncomingSwaps(swaps);
-    }
-    setLoading(false);
   }
 
   useEffect(() => {
@@ -91,6 +100,10 @@ export default function TodayScreen() {
 
   if (loading) {
     return <View style={{ flex: 1, backgroundColor: colors.background }} />;
+  }
+
+  if (loadError !== null) {
+    return <LoadErrorView message={loadError} onRetry={load} testID="today-load-error" />;
   }
 
   return (

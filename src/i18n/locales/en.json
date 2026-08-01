@@ -102,5 +102,9 @@
     "cancel": "Cancel",
     "viewOnly": "View only",
     "saveError": "Failed to save the date"
+  },
+  "common": {
+    "loadError": "Could not load your data. Check your internet connection.",
+    "retry": "Try again"
   }
 }

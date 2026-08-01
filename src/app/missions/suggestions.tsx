@@ -15,6 +15,7 @@ import {
 import { AnimatedPressable } from '../../components/AnimatedPressable';
 import { Card } from '../../components/Card';
 import { CategoryIcon } from '../../components/CategoryIcon';
+import { LoadErrorView } from '../../components/LoadErrorView';
 import { colors, spacing, radii, type IoniconName } from '../../theme';
 
 function suggestionTypeOf(mission: Mission): 'new_mission' | 'points_edit' | 'schedule_edit' {
@@ -44,21 +45,29 @@ export default function SuggestionsScreen() {
   const [items, setItems] = useState<InboxItem[]>([]);
   const [members, setMembers] = useState<{ id: string; name: string; role: 'admin' | 'member' }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   async function load() {
-    const [missions, swaps, unavailability, houseMembers] = await Promise.all([
-      getSuggestions(houseId),
-      getPendingSwapsForAdmin(houseId),
-      getPendingUnavailability(houseId),
-      getHouseMembers(houseId),
-    ]);
-    setMembers(houseMembers);
-    setItems([
-      ...missions.map((mission): InboxItem => ({ kind: 'mission', mission })),
-      ...swaps.map((swap): InboxItem => ({ kind: 'swap', swap })),
-      ...unavailability.map((unavailability): InboxItem => ({ kind: 'unavailability', unavailability })),
-    ]);
-    setLoading(false);
+    setLoadError(null);
+    setLoading(true);
+    try {
+      const [missions, swaps, unavailability, houseMembers] = await Promise.all([
+        getSuggestions(houseId),
+        getPendingSwapsForAdmin(houseId),
+        getPendingUnavailability(houseId),
+        getHouseMembers(houseId),
+      ]);
+      setMembers(houseMembers);
+      setItems([
+        ...missions.map((mission): InboxItem => ({ kind: 'mission', mission })),
+        ...swaps.map((swap): InboxItem => ({ kind: 'swap', swap })),
+        ...unavailability.map((unavailability): InboxItem => ({ kind: 'unavailability', unavailability })),
+      ]);
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : null);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -82,6 +91,10 @@ export default function SuggestionsScreen() {
 
   if (loading) {
     return <View style={{ flex: 1, backgroundColor: colors.background }} />;
+  }
+
+  if (loadError !== null) {
+    return <LoadErrorView message={loadError} onRetry={load} testID="suggestions-load-error" />;
   }
 
   return (

@@ -20,7 +20,12 @@ export default function WelcomeScreen() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setHasSession(!!data.session));
+    supabase.auth
+      .getSession()
+      .then(({ data }) => setHasSession(!!data.session))
+      // A rejection here (no network on launch, storage read failure) would
+      // otherwise leave hasSession null forever, i.e. a permanently blank app.
+      .catch(() => setHasSession(false));
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
       setHasSession(!!session);
     });

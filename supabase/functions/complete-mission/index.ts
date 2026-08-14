@@ -57,15 +57,34 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: 'not_assigned_status' }), { status: 409 });
   }
 
-  const { data: updated, error: updateError } = await admin
+  // Conditional on the row still being 'assigned', so exactly one caller can
+  // perform the assigned -> done transition. Two concurrent completions (a
+  // double tap, or a queued offline retry racing the original) would otherwise
+  // both pass the status check above and both credit the ledger.
+  const { data: updatedRows, error: updateError } = await admin
     .from('mission_instances')
     .update({ status: 'done' })
     .eq('id', mission_instance_id)
-    .select()
-    .single();
+    .eq('status', 'assigned')
+    .select();
   if (updateError) {
     return new Response(JSON.stringify({ error: 'complete_failed' }), { status: 500 });
   }
+  if (!updatedRows || updatedRows.length === 0) {
+    // Lost the race: someone already completed it. Report success without
+    // crediting again, so a replayed offline completion is a no-op rather than
+    // an error the client would keep retrying.
+    const { data: current } = await admin
+      .from('mission_instances')
+      .select()
+      .eq('id', mission_instance_id)
+      .maybeSingle();
+    return new Response(JSON.stringify({ mission: current, already_complete: true }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+  const updated = updatedRows[0];
 
   const { data: existingLedger } = await admin
     .from('points_ledger')

@@ -3,7 +3,8 @@ import { View, Text, FlatList, TextInput, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { getMyHouseId, getMyMembership, getTodayMissions, getHouseMembers, completeMission, editMissionPoints, type Mission } from '../features/missions/api';
+import { getMyHouseId, getMyMembership, getTodayMissions, getHouseMembers, editMissionPoints, type Mission } from '../features/missions/api';
+import { completeMissionWithQueue, drainQueue, readQueue } from '../features/offline/queue';
 import { getMyIncomingSwaps, suggestSwap, respondSwap, type SwapRequest } from '../features/requests/api';
 import { registerForPushNotifications } from '../features/notifications/api';
 import { AnimatedPressable } from '../components/AnimatedPressable';
@@ -20,6 +21,7 @@ export default function TodayScreen() {
   const [missions, setMissions] = useState<Mission[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [pendingSyncCount, setPendingSyncCount] = useState(0);
   const [editingMissionId, setEditingMissionId] = useState<string | null>(null);
   const [editPointsValue, setEditPointsValue] = useState('');
   const [pointsEditFeedback, setPointsEditFeedback] = useState<string | null>(null);
@@ -33,6 +35,10 @@ export default function TodayScreen() {
     setLoadError(null);
     setLoading(true);
     try {
+      // Any completions taken while offline go out before we read state back,
+      // so the list reflects them once connectivity returns.
+      const { remaining } = await drainQueue();
+      setPendingSyncCount(remaining);
       const hId = await getMyHouseId();
       if (!hId) {
         router.replace('/');
@@ -67,7 +73,10 @@ export default function TodayScreen() {
   }, []);
 
   async function handleComplete(missionId: string) {
-    await completeMission(missionId);
+    const { synced } = await completeMissionWithQueue(missionId);
+    // An unsynced tap is recorded locally, not lost, so say so rather than
+    // failing silently or pretending the mission is done on the server.
+    setPendingSyncCount(synced ? 0 : (await readQueue()).length);
     await load();
   }
 
@@ -113,6 +122,11 @@ export default function TodayScreen() {
   return (
     <View style={styles.screen}>
       <Text style={styles.greeting}>{t('today.greeting')}</Text>
+      {pendingSyncCount > 0 && (
+        <Text testID="today-pending-sync" style={styles.pendingSyncText}>
+          {t('today.pendingSync', { count: pendingSyncCount })}
+        </Text>
+      )}
       {incomingSwaps.length > 0 && (
         <Card style={styles.swapCard}>
           <Text style={styles.sectionTitle}>{t('swap.incomingTitle')}</Text>
@@ -297,6 +311,10 @@ const styles = StyleSheet.create({
   },
   feedbackText: {
     color: colors.sage,
+  },
+  pendingSyncText: {
+    color: colors.amber,
+    fontSize: 12,
   },
   errorText: {
     color: colors.rose,

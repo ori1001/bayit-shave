@@ -31,7 +31,8 @@
     "unavailability": "בקש/י חופש",
     "calendar": "לוח שנה",
     "settings": "הגדרות הבית",
-    "templates": "משימות קבועות"
+    "templates": "משימות קבועות",
+    "pendingSync": "{{count}} סימוני ביצוע ממתינים לסנכרון"
   },
   "missions": {
     "suggestTitle": "הצעת משימה",

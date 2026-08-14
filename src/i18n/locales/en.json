@@ -31,7 +31,8 @@
     "unavailability": "Request time off",
     "calendar": "Calendar",
     "settings": "House settings",
-    "templates": "Recurring chores"
+    "templates": "Recurring chores",
+    "pendingSync": "{{count}} completion(s) waiting to sync"
   },
   "missions": {
     "suggestTitle": "Suggest a mission",

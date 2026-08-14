@@ -31,6 +31,12 @@ test.describe('onboarding', () => {
     await page.getByTestId('admin-name-input').fill('Playwright Admin');
     await page.getByTestId('create-house-submit').click();
 
+    // Creating a house now stops on the invite code rather than redirecting
+    // straight past it -- without seeing this code nobody can join the house.
+    await expect(page.getByTestId('create-house-success')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId('invite-code-value')).not.toBeEmpty();
+    await page.getByTestId('create-house-continue').click();
+
     await expect(page).toHaveURL('http://localhost:8081/');
 
     const { data: house } = await admin

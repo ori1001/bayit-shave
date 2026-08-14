@@ -103,6 +103,19 @@ export default function CalendarScreen() {
     }
   }
 
+  async function handleReassign(missionId: string, memberId: string) {
+    setScheduleError(null);
+    try {
+      // Date left untouched -- an admin reassigns outright, a member's choice
+      // lands as a proposal for the inbox.
+      await editMissionSchedule(missionId, null, memberId);
+      setEditingMissionId(null);
+      await load();
+    } catch (e) {
+      setScheduleError(e instanceof Error ? e.message : t('calendar.saveError'));
+    }
+  }
+
   if (loading) {
     return <View style={{ flex: 1, backgroundColor: colors.background }} />;
   }
@@ -192,6 +205,23 @@ export default function CalendarScreen() {
                       <AnimatedPressable onPress={() => setEditingMissionId(null)} testID={`calendar-date-cancel-${mission.id}`}>
                         <Text style={styles.cancelText}>{t('calendar.cancel')}</Text>
                       </AnimatedPressable>
+                    </View>
+                    <Text style={styles.dateInputLabel}>
+                      {isAdmin ? t('calendar.reassignTo') : t('calendar.suggestReassign')}
+                    </Text>
+                    <View style={styles.chipRow}>
+                      {members
+                        .filter((m) => m.id !== mission.assigned_to)
+                        .map((m) => (
+                          <AnimatedPressable
+                            key={m.id}
+                            onPress={() => handleReassign(mission.id, m.id)}
+                            testID={`calendar-reassign-${mission.id}-${m.id}`}
+                            style={styles.reassignChip}
+                          >
+                            <Text style={styles.reassignChipText}>{m.name}</Text>
+                          </AnimatedPressable>
+                        ))}
                     </View>
                     {scheduleError && (
                       <Text testID={`calendar-schedule-error-${mission.id}`} style={styles.errorText}>
@@ -286,6 +316,23 @@ const styles = StyleSheet.create({
   overflowText: {
     fontSize: 9,
     color: colors.textMuted,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  reassignChip: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.sm,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    backgroundColor: colors.surface,
+  },
+  reassignChipText: {
+    fontSize: 11,
+    color: colors.ink,
   },
   dot: {
     width: 5,

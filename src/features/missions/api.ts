@@ -11,6 +11,7 @@ export interface Mission {
   points: number;
   proposed_points: number | null;
   proposed_due_date: string | null;
+  proposed_assigned_to: string | null;
   proposed_by: string | null;
   due_date: string;
   assigned_to: string | null;
@@ -54,9 +55,17 @@ export async function editMissionPoints(missionInstanceId: string, points: numbe
   return data;
 }
 
-export async function editMissionSchedule(missionInstanceId: string, dueDate: string): Promise<{ mission: Mission }> {
+export async function editMissionSchedule(
+  missionInstanceId: string,
+  dueDate: string | null,
+  assignedTo?: string | null
+): Promise<{ mission: Mission }> {
   const { data, error } = await supabase.functions.invoke('edit-mission-schedule', {
-    body: { mission_instance_id: missionInstanceId, due_date: dueDate },
+    body: {
+      mission_instance_id: missionInstanceId,
+      ...(dueDate ? { due_date: dueDate } : {}),
+      ...(assignedTo ? { assigned_to: assignedTo } : {}),
+    },
   });
   if (error) {
     return throwFromInvokeError(data, error);
@@ -139,7 +148,9 @@ export async function getSuggestions(houseId: string): Promise<Mission[]> {
     .from('mission_instances')
     .select('*')
     .eq('house_id', houseId)
-    .or('status.eq.pending_approval,proposed_points.not.is.null,proposed_due_date.not.is.null');
+    .or(
+      'status.eq.pending_approval,proposed_points.not.is.null,proposed_due_date.not.is.null,proposed_assigned_to.not.is.null'
+    );
   if (error) {
     throw new Error(error.message);
   }

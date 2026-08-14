@@ -68,7 +68,8 @@
     "swap": "בקשת החלפה",
     "unavailability": "בקשת חופש",
     "approve": "אשר",
-    "reject": "דחה"
+    "reject": "דחה",
+    "reassignLabel": "אחראי מוצע"
   },
   "balance": {
     "title": "מאזן הבית",
@@ -112,7 +113,9 @@
     "cancel": "ביטול",
     "viewOnly": "צפייה בלבד",
     "saveError": "שמירת התאריך נכשלה",
-    "moreMissions": "עוד {{count}}"
+    "moreMissions": "עוד {{count}}",
+    "reassignTo": "העבר ל",
+    "suggestReassign": "הצע אדם אחר"
   },
   "common": {
     "loadError": "טעינת הנתונים נכשלה. בדוק את החיבור לאינטרנט.",

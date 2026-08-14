@@ -28,6 +28,22 @@ function suggestionTypeOf(mission: Mission): 'new_mission' | 'points_edit' | 'sc
   return 'schedule_edit';
 }
 
+/**
+ * A schedule edit can move the day, the assignee, or both, so the summary line
+ * has to cover a reassignment-only proposal rather than printing "date -> null".
+ */
+function scheduleEditDetail(mission: Mission, members: { id: string; name: string }[]): string {
+  const nameOf = (id: string | null) => members.find((m) => m.id === id)?.name ?? id ?? '';
+  const parts: string[] = [mission.title];
+  if (mission.proposed_due_date) {
+    parts.push(`${mission.due_date} → ${mission.proposed_due_date}`);
+  }
+  if (mission.proposed_assigned_to) {
+    parts.push(`${nameOf(mission.assigned_to)} → ${nameOf(mission.proposed_assigned_to)}`);
+  }
+  return parts.join(' · ');
+}
+
 const KIND_ICON: Record<'new_mission' | 'points_edit' | 'schedule_edit', IoniconName> = {
   new_mission: 'add-circle-outline',
   points_edit: 'pricetag-outline',
@@ -122,7 +138,7 @@ export default function SuggestionsScreen() {
                     ? `${item.mission.title} · ${item.mission.points}`
                     : kind === 'points_edit'
                       ? `${item.mission.title} · ${item.mission.points} → ${item.mission.proposed_points}`
-                      : `${item.mission.title} · ${item.mission.due_date} → ${item.mission.proposed_due_date}`}
+                      : scheduleEditDetail(item.mission, members)}
                 </Text>
                 <View style={styles.decisionRow}>
                   <AnimatedPressable onPress={() => handleMissionDecision(item.mission, 'approve')} testID={`approve-${item.mission.id}`} style={styles.approveButton}>

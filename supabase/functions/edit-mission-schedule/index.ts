@@ -10,9 +10,13 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: 'missing_auth' }), { status: 401 });
   }
 
-  const { mission_instance_id, due_date } = await req.json();
-  if (!mission_instance_id || !due_date) {
-    return new Response(JSON.stringify({ error: 'mission_instance_id_and_due_date_required' }), { status: 400 });
+  const { mission_instance_id, due_date, assigned_to } = await req.json();
+  if (!mission_instance_id) {
+    return new Response(JSON.stringify({ error: 'mission_instance_id_required' }), { status: 400 });
+  }
+  // A schedule edit may move the day, the assignee, or both -- but not neither.
+  if (!due_date && !assigned_to) {
+    return new Response(JSON.stringify({ error: 'due_date_or_assigned_to_required' }), { status: 400 });
   }
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -59,13 +63,40 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: 'not_assigned_to_you' }), { status: 403 });
   }
 
+  // A mission may only be handed to someone in the same house. Checked server
+  // side because the client's member list is just a rendering convenience.
+  if (assigned_to) {
+    const { data: target, error: targetError } = await admin
+      .from('members')
+      .select('id')
+      .eq('id', assigned_to)
+      .eq('house_id', mission.house_id)
+      .maybeSingle();
+    if (targetError) {
+      return new Response(JSON.stringify({ error: 'lookup_failed' }), { status: 500 });
+    }
+    if (!target) {
+      return new Response(JSON.stringify({ error: 'target_not_in_house' }), { status: 400 });
+    }
+  }
+
+  const applied: Record<string, unknown> = {
+    proposed_due_date: null,
+    proposed_assigned_to: null,
+    proposed_by: null,
+    approved_by: callerMember.id,
+    approved_at: new Date().toISOString(),
+  };
+  if (due_date) applied.due_date = due_date;
+  if (assigned_to) applied.assigned_to = assigned_to;
+
+  const proposed: Record<string, unknown> = { proposed_by: callerMember.id };
+  if (due_date) proposed.proposed_due_date = due_date;
+  if (assigned_to) proposed.proposed_assigned_to = assigned_to;
+
   const { data: updated, error: updateError } = await admin
     .from('mission_instances')
-    .update(
-      isAdmin
-        ? { due_date, proposed_due_date: null, proposed_by: null, approved_by: callerMember.id, approved_at: new Date().toISOString() }
-        : { proposed_due_date: due_date, proposed_by: callerMember.id }
-    )
+    .update(isAdmin ? applied : proposed)
     .eq('id', mission_instance_id)
     .select()
     .single();

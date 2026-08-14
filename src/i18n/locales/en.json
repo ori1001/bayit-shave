@@ -68,7 +68,8 @@
     "swap": "Swap request",
     "unavailability": "Time-off request",
     "approve": "Approve",
-    "reject": "Reject"
+    "reject": "Reject",
+    "reassignLabel": "Proposed new assignee"
   },
   "balance": {
     "title": "House Balance",
@@ -112,7 +113,9 @@
     "cancel": "Cancel",
     "viewOnly": "View only",
     "saveError": "Failed to save the date",
-    "moreMissions": "+{{count}} more"
+    "moreMissions": "+{{count}} more",
+    "reassignTo": "Reassign to",
+    "suggestReassign": "Suggest a different person"
   },
   "common": {
     "loadError": "Could not load your data. Check your internet connection.",

@@ -183,13 +183,17 @@ describe('getMyMembership', () => {
 });
 
 describe('getSuggestions', () => {
-  it('queries mission_instances for pending or proposed-points or proposed-due-date rows', async () => {
+  it('queries mission_instances for pending, proposed-points, proposed-due-date or proposed-assignee rows', async () => {
     const chain = mockSelectChain({ data: [{ id: 'm1' }], error: null });
     (supabase.from as jest.Mock).mockReturnValue(chain);
     const result = await getSuggestions('h1');
     expect(supabase.from).toHaveBeenCalledWith('mission_instances');
     expect(chain.eq).toHaveBeenCalledWith('house_id', 'h1');
-    expect(chain.or).toHaveBeenCalledWith('status.eq.pending_approval,proposed_points.not.is.null,proposed_due_date.not.is.null');
+    // proposed_assigned_to must be part of the filter or a reassignment
+    // proposal would never reach the admin's inbox.
+    expect(chain.or).toHaveBeenCalledWith(
+      'status.eq.pending_approval,proposed_points.not.is.null,proposed_due_date.not.is.null,proposed_assigned_to.not.is.null'
+    );
     expect(result).toEqual([{ id: 'm1' }]);
   });
 });

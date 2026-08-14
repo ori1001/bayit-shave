@@ -89,19 +89,27 @@ Deno.serve(async (req) => {
           }
         : { proposed_points: null, proposed_by: null };
   } else {
-    if (!mission.proposed_due_date) {
+    // A schedule edit carries a new day, a new assignee, or both.
+    if (!mission.proposed_due_date && !mission.proposed_assigned_to) {
       return new Response(JSON.stringify({ error: 'no_pending_schedule_edit' }), { status: 409 });
     }
-    updatePayload =
-      decision === 'approve'
-        ? {
-            due_date: mission.proposed_due_date,
-            proposed_due_date: null,
-            proposed_by: null,
-            approved_by: callerMember.id,
-            approved_at: new Date().toISOString(),
-          }
-        : { proposed_due_date: null, proposed_by: null };
+    if (decision === 'approve') {
+      updatePayload = {
+        proposed_due_date: null,
+        proposed_assigned_to: null,
+        proposed_by: null,
+        approved_by: callerMember.id,
+        approved_at: new Date().toISOString(),
+      };
+      if (mission.proposed_due_date) {
+        updatePayload.due_date = mission.proposed_due_date;
+      }
+      if (mission.proposed_assigned_to) {
+        updatePayload.assigned_to = mission.proposed_assigned_to;
+      }
+    } else {
+      updatePayload = { proposed_due_date: null, proposed_assigned_to: null, proposed_by: null };
+    }
   }
 
   const { data: updated, error: updateError } = await admin

@@ -30,7 +30,8 @@
     "balance": "מאזן הבית",
     "unavailability": "בקש/י חופש",
     "calendar": "לוח שנה",
-    "settings": "הגדרות הבית"
+    "settings": "הגדרות הבית",
+    "templates": "משימות קבועות"
   },
   "missions": {
     "suggestTitle": "הצעת משימה",
@@ -143,5 +144,22 @@
     "day_4": "ה׳",
     "day_5": "ו׳",
     "day_6": "ש׳"
+  },
+  "templates": {
+    "title": "משימות קבועות",
+    "addTitle": "הוספת משימה קבועה",
+    "titleLabel": "כותרת",
+    "pointsLabel": "נקודות",
+    "categoryLabel": "קטגוריה",
+    "recurrenceLabel": "חוזר",
+    "weekly": "שבועי ביום",
+    "monthly": "חודשי בתאריך",
+    "add": "הוסף משימה",
+    "remove": "הסר",
+    "generate": "צור משימות קרובות",
+    "generated": "נוצרו {{count}} משימות",
+    "generatedNone": "הכול כבר מתוזמן",
+    "empty": "אין עדיין משימות קבועות",
+    "adminOnly": "רק מנהל הבית יכול לנהל משימות קבועות."
   }
 }

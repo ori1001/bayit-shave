@@ -30,7 +30,8 @@
     "balance": "House balance",
     "unavailability": "Request time off",
     "calendar": "Calendar",
-    "settings": "House settings"
+    "settings": "House settings",
+    "templates": "Recurring chores"
   },
   "missions": {
     "suggestTitle": "Suggest a mission",
@@ -143,5 +144,22 @@
     "day_4": "Thu",
     "day_5": "Fri",
     "day_6": "Sat"
+  },
+  "templates": {
+    "title": "Recurring chores",
+    "addTitle": "Add a recurring chore",
+    "titleLabel": "Title",
+    "pointsLabel": "Points",
+    "categoryLabel": "Category",
+    "recurrenceLabel": "Repeats",
+    "weekly": "Weekly on",
+    "monthly": "Monthly on day",
+    "add": "Add chore",
+    "remove": "Remove",
+    "generate": "Generate upcoming missions",
+    "generated": "Created {{count}} missions",
+    "generatedNone": "Everything is already scheduled",
+    "empty": "No recurring chores yet",
+    "adminOnly": "Only the house admin can manage recurring chores."
   }
 }

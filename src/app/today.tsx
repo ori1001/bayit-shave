@@ -237,6 +237,16 @@ export default function TodayScreen() {
         )}
         {isAdmin && (
           <AnimatedPressable
+            onPress={() => router.push({ pathname: '/missions/templates', params: { houseId: houseId ?? '' } })}
+            testID="today-templates"
+            style={[styles.secondaryButton, { borderColor: colors.sage }]}
+          >
+            <Ionicons name="repeat-outline" size={18} color={colors.sage} />
+            <Text style={[styles.secondaryButtonText, { color: colors.sage }]}>{t('today.templates')}</Text>
+          </AnimatedPressable>
+        )}
+        {isAdmin && (
+          <AnimatedPressable
             onPress={() => router.push({ pathname: '/settings', params: { houseId: houseId ?? '' } })}
             testID="today-settings"
             style={[styles.secondaryButton, { borderColor: colors.amber }]}

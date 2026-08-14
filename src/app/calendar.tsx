@@ -8,6 +8,7 @@ import { AnimatedPressable } from '../components/AnimatedPressable';
 import { Card } from '../components/Card';
 import { CategoryIcon } from '../components/CategoryIcon';
 import { LoadErrorView } from '../components/LoadErrorView';
+import { syncMissionsToDeviceCalendar } from '../features/calendar-sync/api';
 import { colors, spacing, radii, CATEGORY_META } from '../theme';
 
 export default function CalendarScreen() {
@@ -28,6 +29,7 @@ export default function CalendarScreen() {
   const [scheduleError, setScheduleError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
 
   async function load() {
     setLoadError(null);
@@ -103,6 +105,22 @@ export default function CalendarScreen() {
     }
   }
 
+  async function handleSyncToDevice() {
+    setSyncMessage(null);
+    try {
+      const result = await syncMissionsToDeviceCalendar(visibleMissions);
+      // null means device calendars are unavailable here (web, or declined),
+      // which is a state to explain rather than an error to throw.
+      setSyncMessage(
+        result === null
+          ? t('calendar.syncUnavailable')
+          : t('calendar.synced', { count: result.created + result.updated })
+      );
+    } catch (e) {
+      setSyncMessage(e instanceof Error ? e.message : t('calendar.saveError'));
+    }
+  }
+
   async function handleReassign(missionId: string, memberId: string) {
     setScheduleError(null);
     try {
@@ -141,6 +159,16 @@ export default function CalendarScreen() {
           <Ionicons name="chevron-forward" size={20} color={colors.ink} />
         </AnimatedPressable>
       </View>
+
+      <AnimatedPressable onPress={handleSyncToDevice} testID="calendar-sync-device" style={styles.syncButton}>
+        <Ionicons name="calendar-outline" size={16} color={colors.ink} />
+        <Text style={styles.syncButtonText}>{t('calendar.syncToDevice')}</Text>
+      </AnimatedPressable>
+      {syncMessage && (
+        <Text testID="calendar-sync-message" style={styles.syncMessage}>
+          {syncMessage}
+        </Text>
+      )}
 
       <View style={styles.toggleRow}>
         <AnimatedPressable onPress={() => setMineOnly(false)} testID="calendar-everyone" style={[styles.toggleOption, !mineOnly && styles.toggleOptionActive]}>
@@ -321,6 +349,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
+  },
+  syncButton: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+    borderRadius: radii.lg,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+  },
+  syncButtonText: {
+    color: colors.ink,
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  syncMessage: {
+    color: colors.textMuted,
+    fontSize: 12,
   },
   reassignChip: {
     borderWidth: 1,

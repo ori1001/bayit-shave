@@ -116,7 +116,10 @@
     "saveError": "שמירת התאריך נכשלה",
     "moreMissions": "עוד {{count}}",
     "reassignTo": "העבר ל",
-    "suggestReassign": "הצע אדם אחר"
+    "suggestReassign": "הצע אדם אחר",
+    "syncToDevice": "הוסף ליומן שלי",
+    "synced": "סונכרנו {{count}} משימות",
+    "syncUnavailable": "אין גישה ליומן במכשיר זה"
   },
   "common": {
     "loadError": "טעינת הנתונים נכשלה. בדוק את החיבור לאינטרנט.",

@@ -116,7 +116,10 @@
     "saveError": "Failed to save the date",
     "moreMissions": "+{{count}} more",
     "reassignTo": "Reassign to",
-    "suggestReassign": "Suggest a different person"
+    "suggestReassign": "Suggest a different person",
+    "syncToDevice": "Add to my device calendar",
+    "synced": "Synced {{count}} missions",
+    "syncUnavailable": "Calendar access is unavailable on this device"
   },
   "common": {
     "loadError": "Could not load your data. Check your internet connection.",

@@ -29,7 +29,8 @@
     "suggestions": "Suggestions",
     "balance": "House balance",
     "unavailability": "Request time off",
-    "calendar": "Calendar"
+    "calendar": "Calendar",
+    "settings": "House settings"
   },
   "missions": {
     "suggestTitle": "Suggest a mission",
@@ -116,5 +117,28 @@
   "common": {
     "loadError": "Could not load your data. Check your internet connection.",
     "retry": "Try again"
+  },
+  "settings": {
+    "title": "House settings",
+    "strategyLabel": "Assignment strategy",
+    "strategy_points_based": "By points",
+    "strategy_round_robin": "Round robin",
+    "strategy_manual": "Manual",
+    "periodLabel": "Balance period",
+    "period_weekly": "Weekly",
+    "period_monthly": "Monthly",
+    "balanceDayLabel": "Balance day",
+    "weightsLabel": "Member weights",
+    "weightHint": "A lower weight means a smaller share of the points target. Applies to future balance runs only.",
+    "save": "Save settings",
+    "saved": "Settings saved",
+    "adminOnly": "Only the house admin can change these settings.",
+    "day_0": "Sun",
+    "day_1": "Mon",
+    "day_2": "Tue",
+    "day_3": "Wed",
+    "day_4": "Thu",
+    "day_5": "Fri",
+    "day_6": "Sat"
   }
 }

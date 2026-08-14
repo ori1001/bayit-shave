@@ -235,6 +235,16 @@ export default function TodayScreen() {
             <Text style={[styles.secondaryButtonText, { color: colors.ink }]}>{t('today.suggestions')}</Text>
           </AnimatedPressable>
         )}
+        {isAdmin && (
+          <AnimatedPressable
+            onPress={() => router.push({ pathname: '/settings', params: { houseId: houseId ?? '' } })}
+            testID="today-settings"
+            style={[styles.secondaryButton, { borderColor: colors.amber }]}
+          >
+            <Ionicons name="settings-outline" size={18} color={colors.amber} />
+            <Text style={[styles.secondaryButtonText, { color: colors.amber }]}>{t('today.settings')}</Text>
+          </AnimatedPressable>
+        )}
       </View>
     </View>
   );

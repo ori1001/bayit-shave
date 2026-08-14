@@ -29,7 +29,8 @@
     "suggestions": "הצעות",
     "balance": "מאזן הבית",
     "unavailability": "בקש/י חופש",
-    "calendar": "לוח שנה"
+    "calendar": "לוח שנה",
+    "settings": "הגדרות הבית"
   },
   "missions": {
     "suggestTitle": "הצעת משימה",
@@ -116,5 +117,28 @@
   "common": {
     "loadError": "טעינת הנתונים נכשלה. בדוק את החיבור לאינטרנט.",
     "retry": "נסה שוב"
+  },
+  "settings": {
+    "title": "הגדרות הבית",
+    "strategyLabel": "שיטת שיבוץ",
+    "strategy_points_based": "לפי נקודות",
+    "strategy_round_robin": "תורנות",
+    "strategy_manual": "ידני",
+    "periodLabel": "תקופת איזון",
+    "period_weekly": "שבועי",
+    "period_monthly": "חודשי",
+    "balanceDayLabel": "יום איזון",
+    "weightsLabel": "משקל חברי הבית",
+    "weightHint": "משקל נמוך יותר פירושו יעד נקודות קטן יותר. חל על ריצות איזון עתידיות בלבד.",
+    "save": "שמור הגדרות",
+    "saved": "ההגדרות נשמרו",
+    "adminOnly": "רק מנהל הבית יכול לשנות הגדרות אלו.",
+    "day_0": "א׳",
+    "day_1": "ב׳",
+    "day_2": "ג׳",
+    "day_3": "ד׳",
+    "day_4": "ה׳",
+    "day_5": "ו׳",
+    "day_6": "ש׳"
   }
 }

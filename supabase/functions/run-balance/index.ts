@@ -63,7 +63,7 @@ Deno.serve(async (req) => {
 
   const { data: openMissions, error: missionsError } = await admin
     .from('mission_instances')
-    .select('id, points')
+    .select('id, points, template_id')
     .eq('house_id', house_id)
     .eq('status', 'open')
     .is('assigned_to', null)
@@ -101,6 +101,27 @@ Deno.serve(async (req) => {
   const unavailableMemberIds = new Set((activeUnavailability ?? []).map((u) => u.member_id));
   const availableMembers = members.filter((m) => !unavailableMemberIds.has(m.id));
 
+  // A template may restrict its rotation to a subset of the house. Null means
+  // everyone, which is why this is a lookup rather than a default-empty set.
+  const { data: templateRows, error: templateError } = await admin
+    .from('mission_templates')
+    .select('id, eligible_members')
+    .eq('house_id', house_id);
+  if (templateError) {
+    return new Response(JSON.stringify({ error: 'lookup_failed' }), { status: 500 });
+  }
+  const eligibleByTemplate = new Map<string, string[] | null>(
+    (templateRows ?? []).map((t) => [t.id, t.eligible_members ?? null])
+  );
+
+  function candidatesFor(mission: { template_id?: string | null }): typeof availableMembers {
+    const eligible = mission.template_id ? eligibleByTemplate.get(mission.template_id) : null;
+    if (!eligible || eligible.length === 0) {
+      return availableMembers;
+    }
+    return availableMembers.filter((m) => eligible.includes(m.id));
+  }
+
   const assigned: { mission_id: string; member_id: string }[] = [];
 
   if (availableMembers.length === 0) {
@@ -114,7 +135,23 @@ Deno.serve(async (req) => {
     }
     let cursor = startIndex;
     for (const mission of openMissions) {
-      const member = availableMembers[cursor];
+      const candidates = candidatesFor(mission);
+      if (candidates.length === 0) {
+        // Nobody in this template's subset is available; leave it in the pool
+        // rather than handing it to someone who is not eligible for it.
+        continue;
+      }
+      // Keep the house-wide rotation, but skip past anyone outside this
+      // template's subset so restricted chores don't reset the cursor.
+      let member = availableMembers[cursor];
+      for (let step = 0; step < availableMembers.length; step++) {
+        const candidate = availableMembers[(cursor + step) % availableMembers.length];
+        if (candidates.some((c) => c.id === candidate.id)) {
+          member = candidate;
+          cursor = (cursor + step) % availableMembers.length;
+          break;
+        }
+      }
       const { error: assignError } = await admin
         .from('mission_instances')
         .update({ assigned_to: member.id, status: 'assigned' })
@@ -148,9 +185,15 @@ Deno.serve(async (req) => {
     }
 
     for (const mission of openMissions) {
-      let pickedMember = availableMembers[0];
+      const candidates = candidatesFor(mission);
+      if (candidates.length === 0) {
+        // No eligible member available: leave it open rather than assigning
+        // outside the template's subset just because someone is furthest behind.
+        continue;
+      }
+      let pickedMember = candidates[0];
       let highestDeficit = -Infinity;
-      for (const member of availableMembers) {
+      for (const member of candidates) {
         const deficit = projectedDeficit.get(member.id) ?? 0;
         if (deficit > highestDeficit) {
           highestDeficit = deficit;

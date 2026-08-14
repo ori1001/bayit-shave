@@ -63,9 +63,28 @@ export default function BalanceScreen() {
     return <LoadErrorView message={loadError} onRetry={load} testID="balance-load-error" />;
   }
 
+  // House-level view of the pool: the spec asks for total points in play and
+  // whether the house is balanced, not just the per-member breakdown.
+  const houseEarned = pool.reduce((sum, p) => sum + p.points_earned, 0);
+  const houseTarget = pool.reduce((sum, p) => sum + p.points_target + p.debt, 0);
+  const houseBalanced = pool.every((p) => p.points_earned >= p.points_target + p.debt);
+
   return (
     <View style={styles.screen}>
       <Text style={styles.title}>{t('balance.title')}</Text>
+      <Card testID="balance-house-summary" style={styles.summaryCard}>
+        <View style={styles.rowHeader}>
+          <Ionicons
+            name={houseBalanced ? 'checkmark-circle' : 'hourglass-outline'}
+            size={18}
+            color={houseBalanced ? colors.sage : colors.rose}
+          />
+          <Text style={styles.memberName}>{t(houseBalanced ? 'balance.houseBalanced' : 'balance.houseImbalanced')}</Text>
+        </View>
+        <Text style={styles.detailText}>
+          {t('balance.houseTotalEarned')}: {houseEarned} · {t('balance.houseTotalTarget')}: {Math.round(houseTarget)}
+        </Text>
+      </Card>
       <FlatList
         data={pool}
         keyExtractor={(p) => p.member_id}
@@ -135,6 +154,9 @@ const styles = StyleSheet.create({
     color: colors.ink,
   },
   row: {
+    gap: spacing.xs,
+  },
+  summaryCard: {
     gap: spacing.xs,
   },
   rowHeader: {

@@ -149,6 +149,12 @@ export default function CalendarScreen() {
                   <View key={i} style={[styles.dot, { backgroundColor: (CATEGORY_META[m.category] ?? CATEGORY_META.other).color }]} />
                 ))}
               </View>
+              {/* Without this a 7-mission day looked identical to a 3-mission one. */}
+              {dayMissions.length > 3 && (
+                <Text testID={`calendar-day-${day}-overflow`} style={styles.overflowText}>
+                  {t('calendar.moreMissions', { count: dayMissions.length - 3 })}
+                </Text>
+              )}
             </AnimatedPressable>
           );
         })}
@@ -276,6 +282,10 @@ const styles = StyleSheet.create({
   dotRow: {
     flexDirection: 'row',
     gap: 2,
+  },
+  overflowText: {
+    fontSize: 9,
+    color: colors.textMuted,
   },
   dot: {
     width: 5,

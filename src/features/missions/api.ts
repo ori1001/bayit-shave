@@ -88,13 +88,27 @@ export async function completeMission(missionInstanceId: string): Promise<{ miss
   return data;
 }
 
-export async function getTodayMissions(houseId: string, memberId: string): Promise<Mission[]> {
+/** Local (not UTC) YYYY-MM-DD, to match how due_date is stored and compared. */
+export function localDateString(date: Date = new Date()): string {
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
+export async function getTodayMissions(
+  houseId: string,
+  memberId: string,
+  day: string = localDateString()
+): Promise<Mission[]> {
   const { data, error } = await supabase
     .from('mission_instances')
     .select('*')
     .eq('house_id', houseId)
     .eq('assigned_to', memberId)
-    .eq('status', 'assigned');
+    .eq('status', 'assigned')
+    // Without this the "Today" screen listed every assigned mission ever,
+    // growing without bound and duplicating the calendar.
+    .eq('due_date', day);
   if (error) {
     throw new Error(error.message);
   }

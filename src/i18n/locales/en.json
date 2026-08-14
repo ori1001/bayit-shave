@@ -7,7 +7,12 @@
     "houseNameLabel": "House name",
     "yourNameLabel": "Your name",
     "inviteCodeLabel": "Invite code",
-    "submit": "Continue"
+    "submit": "Continue",
+    "houseCreated": "House created",
+    "shareCodeIntro": "Share this invite code with your housemates so they can join:",
+    "copyCode": "Copy code",
+    "codeCopied": "Copied",
+    "goToHouse": "Go to my house"
   },
   "auth": {
     "emailLabel": "Email",
@@ -72,7 +77,11 @@
     "behindBy": "Behind by",
     "onTrack": "On track",
     "runBalance": "Run balance",
-    "openMissions": "Open missions waiting in the pool"
+    "openMissions": "Open missions waiting in the pool",
+    "houseTotalEarned": "Total earned",
+    "houseTotalTarget": "Total target",
+    "houseBalanced": "The house is balanced",
+    "houseImbalanced": "Not balanced yet"
   },
   "swap": {
     "requestSwap": "Request swap",
@@ -101,7 +110,8 @@
     "save": "Save",
     "cancel": "Cancel",
     "viewOnly": "View only",
-    "saveError": "Failed to save the date"
+    "saveError": "Failed to save the date",
+    "moreMissions": "+{{count}} more"
   },
   "common": {
     "loadError": "Could not load your data. Check your internet connection.",

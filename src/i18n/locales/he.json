@@ -7,7 +7,12 @@
     "houseNameLabel": "שם הבית",
     "yourNameLabel": "השם שלך",
     "inviteCodeLabel": "קוד הזמנה",
-    "submit": "המשך"
+    "submit": "המשך",
+    "houseCreated": "הבית נוצר",
+    "shareCodeIntro": "שתפו את קוד ההזמנה עם השותפים כדי שיוכלו להצטרף:",
+    "copyCode": "העתק קוד",
+    "codeCopied": "הועתק",
+    "goToHouse": "מעבר לבית שלי"
   },
   "auth": {
     "emailLabel": "אימייל",
@@ -72,7 +77,11 @@
     "behindBy": "מפגר ב-",
     "onTrack": "מאוזן/ת",
     "runBalance": "הרץ איזון",
-    "openMissions": "משימות בהמתנה במאגר"
+    "openMissions": "משימות בהמתנה במאגר",
+    "houseTotalEarned": "סה\"כ נצבר",
+    "houseTotalTarget": "סה\"כ יעד",
+    "houseBalanced": "הבית מאוזן",
+    "houseImbalanced": "עדיין לא מאוזן"
   },
   "swap": {
     "requestSwap": "בקש/י החלפה",
@@ -101,7 +110,8 @@
     "save": "שמור",
     "cancel": "ביטול",
     "viewOnly": "צפייה בלבד",
-    "saveError": "שמירת התאריך נכשלה"
+    "saveError": "שמירת התאריך נכשלה",
+    "moreMissions": "עוד {{count}}"
   },
   "common": {
     "loadError": "טעינת הנתונים נכשלה. בדוק את החיבור לאינטרנט.",

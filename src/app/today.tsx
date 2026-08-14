@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { getMyHouseId, getMyMembership, getTodayMissions, getHouseMembers, completeMission, editMissionPoints, type Mission } from '../features/missions/api';
 import { getMyIncomingSwaps, suggestSwap, respondSwap, type SwapRequest } from '../features/requests/api';
+import { registerForPushNotifications } from '../features/notifications/api';
 import { AnimatedPressable } from '../components/AnimatedPressable';
 import { Card } from '../components/Card';
 import { CategoryIcon } from '../components/CategoryIcon';
@@ -42,6 +43,9 @@ export default function TodayScreen() {
       setIsAdmin(membership?.role === 'admin');
       if (membership) {
         setMyMemberId(membership.id);
+        // Push is best-effort: a declined permission or a device that cannot
+        // mint a token must not stop the screen from loading.
+        registerForPushNotifications(membership.id).catch(() => {});
         const [todayMissions, houseMembers, swaps] = await Promise.all([
           getTodayMissions(hId, membership.id),
           getHouseMembers(hId),

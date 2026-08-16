@@ -1,9 +1,9 @@
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
-import { signUp, signIn, signInWithGoogle, parseAuthFragment } from '../api';
+import { signUp, signIn, signInWithGoogle, parseAuthFragment, resendConfirmation, openMailApp } from '../api';
 import { supabase } from '../../../lib/supabase';
 
-jest.mock('expo-linking', () => ({ createURL: jest.fn() }));
+jest.mock('expo-linking', () => ({ createURL: jest.fn(), canOpenURL: jest.fn(), openURL: jest.fn() }));
 jest.mock('expo-web-browser', () => ({ openAuthSessionAsync: jest.fn() }));
 
 jest.mock('../../../lib/supabase', () => ({
@@ -13,6 +13,7 @@ jest.mock('../../../lib/supabase', () => ({
       signInWithPassword: jest.fn(),
       signInWithOAuth: jest.fn(),
       setSession: jest.fn(),
+      resend: jest.fn(),
     },
   },
 }));
@@ -132,5 +133,36 @@ describe('signInWithGoogle', () => {
       code: 'abc',
       access_token: 'tok',
     });
+  });
+});
+
+describe('confirmation helpers', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('resends the signup confirmation for the address', async () => {
+    (supabase.auth.resend as jest.Mock).mockResolvedValue({ error: null });
+    await resendConfirmation('a@b.com');
+    expect(supabase.auth.resend).toHaveBeenCalledWith({ type: 'signup', email: 'a@b.com' });
+  });
+
+  it('surfaces a rate-limit message rather than failing silently', async () => {
+    (supabase.auth.resend as jest.Mock).mockResolvedValue({
+      error: { message: 'For security purposes, you can only request this once every 60 seconds' },
+    });
+    await expect(resendConfirmation('a@b.com')).rejects.toThrow(/60 seconds/);
+  });
+
+  it('opens the first mail target the device can handle', async () => {
+    (Linking.canOpenURL as jest.Mock).mockImplementation((u: string) => Promise.resolve(u.startsWith('https://')));
+    (Linking.openURL as jest.Mock).mockResolvedValue(undefined);
+
+    await expect(openMailApp()).resolves.toBe(true);
+    expect(Linking.openURL).toHaveBeenCalledWith('https://mail.google.com');
+  });
+
+  it('reports false when nothing can open mail, instead of throwing', async () => {
+    (Linking.canOpenURL as jest.Mock).mockResolvedValue(false);
+    await expect(openMailApp()).resolves.toBe(false);
+    expect(Linking.openURL).not.toHaveBeenCalled();
   });
 });

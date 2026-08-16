@@ -25,7 +25,11 @@
     "checkEmailBody": "שלחנו קישור אישור אל {{email}}. פתחו אותו ואז התחברו.",
     "backToSignIn": "חזרה להתחברות",
     "orDivider": "או",
-    "continueWithGoogle": "המשך עם Google"
+    "continueWithGoogle": "המשך עם Google",
+    "openMailApp": "פתח את אפליקציית המייל",
+    "resend": "שלח שוב את הקישור",
+    "resent": "נשלח שוב — בדקו את המייל",
+    "iConfirmed": "אישרתי — התחברו אותי"
   },
   "today": {
     "greeting": "היום",

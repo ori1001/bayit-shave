@@ -11,6 +11,7 @@ import { AnimatedPressable } from '../components/AnimatedPressable';
 import { Card } from '../components/Card';
 import { CategoryIcon } from '../components/CategoryIcon';
 import { LoadErrorView } from '../components/LoadErrorView';
+import { LoadingScreen, FadeIn } from '../components/Motion';
 import { colors, spacing, radii } from '../theme';
 
 export default function TodayScreen() {
@@ -112,7 +113,7 @@ export default function TodayScreen() {
   }
 
   if (loading) {
-    return <View style={{ flex: 1, backgroundColor: colors.background }} />;
+    return <LoadingScreen />;
   }
 
   if (loadError !== null) {
@@ -158,8 +159,8 @@ export default function TodayScreen() {
         keyExtractor={(m) => m.id}
         contentContainerStyle={{ gap: spacing.sm }}
         ListEmptyComponent={<Text style={styles.emptyText}>{t('today.noMissions')}</Text>}
-        renderItem={({ item }) => (
-          <View style={{ gap: spacing.xs }}>
+        renderItem={({ item, index }) => (
+          <FadeIn index={index} style={{ gap: spacing.xs }}>
             <AnimatedPressable onPress={() => handleComplete(item.id)} testID={`mission-row-${item.id}`}>
               <Card style={styles.missionCard}>
                 <CategoryIcon category={item.category} />
@@ -207,7 +208,7 @@ export default function TodayScreen() {
                   ))}
               </View>
             )}
-          </View>
+          </FadeIn>
         )}
       />
       <View style={{ gap: spacing.sm }}>

@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { supabase } from '../../lib/supabase';
@@ -81,6 +82,41 @@ export async function signInWithGoogle(): Promise<boolean> {
     throw new Error(sessionError.message);
   }
   return true;
+}
+
+/** Re-sends the confirmation link for an address that has not confirmed yet. */
+export async function resendConfirmation(email: string): Promise<void> {
+  const { error } = await supabase.auth.resend({ type: 'signup', email });
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+/**
+ * Opens the device's mail app.
+ *
+ * Android exposes an intent for "an app that can read mail", which is more
+ * reliable than guessing at Gmail or a mailto: link that would start a
+ * *compose* window rather than the inbox. Returns false when nothing handles
+ * it, so the caller can stay quiet rather than showing a failure.
+ */
+export async function openMailApp(): Promise<boolean> {
+  const candidates =
+    Platform.OS === 'android'
+      ? ['content://com.android.email.provider', 'https://mail.google.com']
+      : ['message://', 'https://mail.google.com'];
+
+  for (const url of candidates) {
+    try {
+      if (await Linking.canOpenURL(url)) {
+        await Linking.openURL(url);
+        return true;
+      }
+    } catch {
+      // Try the next candidate rather than failing the whole action.
+    }
+  }
+  return false;
 }
 
 /** Tokens come back in the fragment (#a=b&c=d), not the query string. */

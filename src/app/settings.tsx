@@ -14,6 +14,7 @@ import {
 import { AnimatedPressable } from '../components/AnimatedPressable';
 import { Card } from '../components/Card';
 import { LoadErrorView } from '../components/LoadErrorView';
+import { LoadingScreen, FadeIn } from '../components/Motion';
 import { colors, spacing, radii } from '../theme';
 
 const STRATEGIES: AssignmentStrategy[] = ['points_based', 'round_robin', 'manual'];
@@ -84,7 +85,7 @@ export default function SettingsScreen() {
   }
 
   if (loading) {
-    return <View style={{ flex: 1, backgroundColor: colors.background }} />;
+    return <LoadingScreen />;
   }
 
   if (loadError !== null) {

@@ -16,6 +16,7 @@ import { AnimatedPressable } from '../../components/AnimatedPressable';
 import { Card } from '../../components/Card';
 import { CategoryIcon } from '../../components/CategoryIcon';
 import { LoadErrorView } from '../../components/LoadErrorView';
+import { LoadingScreen, FadeIn } from '../../components/Motion';
 import { colors, spacing, radii, type IoniconName } from '../../theme';
 
 function suggestionTypeOf(mission: Mission): 'new_mission' | 'points_edit' | 'schedule_edit' {
@@ -106,7 +107,7 @@ export default function SuggestionsScreen() {
   }
 
   if (loading) {
-    return <View style={{ flex: 1, backgroundColor: colors.background }} />;
+    return <LoadingScreen />;
   }
 
   if (loadError !== null) {

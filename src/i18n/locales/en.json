@@ -25,7 +25,11 @@
     "checkEmailBody": "We sent a confirmation link to {{email}}. Open it, then sign in.",
     "backToSignIn": "Back to sign in",
     "orDivider": "or",
-    "continueWithGoogle": "Continue with Google"
+    "continueWithGoogle": "Continue with Google",
+    "openMailApp": "Open mail app",
+    "resend": "Resend the link",
+    "resent": "Sent again — check your inbox",
+    "iConfirmed": "I confirmed — sign me in"
   },
   "today": {
     "greeting": "Today",

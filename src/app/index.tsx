@@ -4,10 +4,11 @@ import { useTranslation } from 'react-i18next';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
-import { signUp, signIn, signInWithGoogle } from '../features/auth/api';
+import { signUp, signIn, signInWithGoogle, resendConfirmation, openMailApp } from '../features/auth/api';
 import { getMyHouseId } from '../features/missions/api';
 import { AnimatedPressable } from '../components/AnimatedPressable';
 import { CategoryIcon } from '../components/CategoryIcon';
+import { Logo, LogoMark } from '../components/Logo';
 import { colors, spacing, radii, MISSION_CATEGORIES } from '../theme';
 
 export default function WelcomeScreen() {
@@ -20,6 +21,7 @@ export default function WelcomeScreen() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
+  const [resent, setResent] = useState(false);
 
   useEffect(() => {
     supabase.auth
@@ -70,6 +72,17 @@ export default function WelcomeScreen() {
     }
   }
 
+  async function handleResend() {
+    setError(null);
+    try {
+      await resendConfirmation(email);
+      setResent(true);
+      setTimeout(() => setResent(false), 4000);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'unknown_error');
+    }
+  }
+
   async function handleGoogleSignIn() {
     setError(null);
     setSubmitting(true);
@@ -91,23 +104,34 @@ export default function WelcomeScreen() {
   if (awaitingConfirmation) {
     return (
       <View style={styles.screen} testID="auth-awaiting-confirmation">
-        <View style={styles.brandBadge}>
-          <Ionicons name="mail-unread-outline" size={34} color={colors.cream} />
-        </View>
+        <LogoMark size={64} />
         <Text style={styles.appName}>{t('auth.checkEmail')}</Text>
         <Text style={styles.tagline}>{t('auth.checkEmailBody', { email })}</Text>
+        <AnimatedPressable onPress={openMailApp} testID="auth-open-mail" style={styles.primaryButton}>
+          <Ionicons name="mail-open-outline" size={18} color={colors.cream} />
+          <Text style={styles.primaryButtonText}>{t('auth.openMailApp')}</Text>
+        </AnimatedPressable>
         <AnimatedPressable
           onPress={() => {
+            // The link establishes the session on the server; a sign-in here
+            // picks it up without making the user retype anything.
             setAwaitingConfirmation(false);
             setMode('signIn');
-            setPassword('');
           }}
           testID="auth-back-to-signin"
-          style={styles.primaryButton}
+          style={styles.googleButton}
         >
-          <Ionicons name="log-in-outline" size={18} color={colors.cream} />
-          <Text style={styles.primaryButtonText}>{t('auth.backToSignIn')}</Text>
+          <Ionicons name="log-in-outline" size={18} color={colors.ink} />
+          <Text style={styles.googleButtonText}>{t('auth.iConfirmed')}</Text>
         </AnimatedPressable>
+        <AnimatedPressable onPress={handleResend} testID="auth-resend">
+          <Text style={styles.switchModeText}>{resent ? t('auth.resent') : t('auth.resend')}</Text>
+        </AnimatedPressable>
+        {error && (
+          <Text testID="auth-error" style={styles.errorText}>
+            {error}
+          </Text>
+        )}
       </View>
     );
   }
@@ -115,10 +139,7 @@ export default function WelcomeScreen() {
   if (!hasSession) {
     return (
       <View style={styles.screen}>
-        <View style={styles.brandBadge}>
-          <Ionicons name="home" size={34} color={colors.cream} />
-        </View>
-        <Text style={styles.appName}>{t('onboarding.appName')}</Text>
+        <Logo size={84} />
         <Text style={styles.tagline}>{t('onboarding.tagline')}</Text>
         {/* The category palette is the app's whole visual identity and used to
             appear only after sign-in, leaving the first screen colourless. */}
@@ -185,10 +206,7 @@ export default function WelcomeScreen() {
 
   return (
     <View style={styles.screen}>
-      <View style={styles.brandBadge}>
-        <Ionicons name="home" size={34} color={colors.cream} />
-      </View>
-      <Text style={styles.appName}>{t('onboarding.appName')}</Text>
+      <Logo size={84} />
       <Text style={styles.tagline}>{t('onboarding.tagline')}</Text>
       <View style={{ width: '100%', gap: spacing.md, marginTop: spacing.lg }}>
         <AnimatedPressable onPress={() => router.push('/onboarding/create-house')} testID="welcome-create-house" style={styles.primaryButton}>

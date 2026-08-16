@@ -15,6 +15,7 @@ import { AnimatedPressable } from '../../components/AnimatedPressable';
 import { Card } from '../../components/Card';
 import { CategoryIcon } from '../../components/CategoryIcon';
 import { LoadErrorView } from '../../components/LoadErrorView';
+import { LoadingScreen, FadeIn } from '../../components/Motion';
 import { colors, spacing, radii, MISSION_CATEGORIES } from '../../theme';
 
 const WEEKDAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
@@ -101,7 +102,7 @@ export default function TemplatesScreen() {
   }
 
   if (loading) {
-    return <View style={{ flex: 1, backgroundColor: colors.background }} />;
+    return <LoadingScreen />;
   }
 
   if (loadError !== null) {

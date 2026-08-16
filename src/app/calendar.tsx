@@ -8,6 +8,7 @@ import { AnimatedPressable } from '../components/AnimatedPressable';
 import { Card } from '../components/Card';
 import { CategoryIcon } from '../components/CategoryIcon';
 import { LoadErrorView } from '../components/LoadErrorView';
+import { LoadingScreen, FadeIn } from '../components/Motion';
 import { syncMissionsToDeviceCalendar } from '../features/calendar-sync/api';
 import { colors, spacing, radii, CATEGORY_META } from '../theme';
 
@@ -135,7 +136,7 @@ export default function CalendarScreen() {
   }
 
   if (loading) {
-    return <View style={{ flex: 1, backgroundColor: colors.background }} />;
+    return <LoadingScreen />;
   }
 
   if (loadError !== null) {

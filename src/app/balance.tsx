@@ -8,6 +8,7 @@ import { getPointsPool, getOpenMissions, runBalance, assignMission, type PointsP
 import { AnimatedPressable } from '../components/AnimatedPressable';
 import { Card } from '../components/Card';
 import { LoadErrorView } from '../components/LoadErrorView';
+import { LoadingScreen, FadeIn } from '../components/Motion';
 import { colors, spacing, radii } from '../theme';
 
 export default function BalanceScreen() {
@@ -56,7 +57,7 @@ export default function BalanceScreen() {
   }
 
   if (loading) {
-    return <View style={{ flex: 1, backgroundColor: colors.background }} />;
+    return <LoadingScreen />;
   }
 
   if (loadError !== null) {
@@ -89,12 +90,13 @@ export default function BalanceScreen() {
         data={pool}
         keyExtractor={(p) => p.member_id}
         contentContainerStyle={{ gap: spacing.sm }}
-        renderItem={({ item }) => {
+        renderItem={({ item, index }) => {
           const target = item.points_target + item.debt;
           const behind = target - item.points_earned;
           const progress = target > 0 ? Math.min(1, Math.max(0, item.points_earned / target)) : 1;
           const onTrack = behind <= 0;
           return (
+            <FadeIn index={index}>
             <Card testID={`balance-row-${item.member_id}`} style={styles.row}>
               <View style={styles.rowHeader}>
                 <Ionicons name={onTrack ? 'checkmark-circle' : 'hourglass-outline'} size={18} color={onTrack ? colors.sage : colors.rose} />
@@ -109,6 +111,7 @@ export default function BalanceScreen() {
               </Text>
               <Text style={styles.detailText}>{behind > 0 ? `${t('balance.behindBy')} ${Math.round(behind)}` : t('balance.onTrack')}</Text>
             </Card>
+            </FadeIn>
           );
         }}
       />

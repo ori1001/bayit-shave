@@ -15,6 +15,7 @@ import { AnimatedPressable } from '../../components/AnimatedPressable';
 import { Card } from '../../components/Card';
 import { CategoryIcon } from '../../components/CategoryIcon';
 import { LoadErrorView } from '../../components/LoadErrorView';
+import { BottomSheet } from '../../components/BottomSheet';
 import { LoadingScreen, FadeIn } from '../../components/Motion';
 import { colors, spacing, radii, MISSION_CATEGORIES } from '../../theme';
 
@@ -31,6 +32,7 @@ export default function TemplatesScreen() {
   const [formError, setFormError] = useState<string | null>(null);
   const [generatedCount, setGeneratedCount] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
 
   const [title, setTitle] = useState('');
   const [points, setPoints] = useState('10');
@@ -69,6 +71,7 @@ export default function TemplatesScreen() {
         recurrence_rule: frequency === 'weekly' ? `weekly:${weekday}` : `monthly:${Number(monthDay)}`,
       });
       setTitle('');
+      setFormOpen(false);
       await load();
     } catch (e) {
       setFormError(e instanceof Error ? e.message : null);
@@ -147,8 +150,33 @@ export default function TemplatesScreen() {
 
       {isAdmin && (
         <>
-          <Text style={styles.sectionTitle}>{t('templates.addTitle')}</Text>
+          <AnimatedPressable onPress={() => setFormOpen(true)} testID="template-open-form" style={styles.primaryButton}>
+            <Ionicons name="add-circle-outline" size={18} color={colors.cream} />
+            <Text style={styles.primaryButtonText}>{t('templates.addTitle')}</Text>
+          </AnimatedPressable>
 
+          <AnimatedPressable
+            onPress={handleGenerate}
+            disabled={busy || templates.length === 0}
+            testID="templates-generate"
+            style={styles.secondaryButton}
+          >
+            <Ionicons name="calendar-outline" size={18} color={colors.ink} />
+            <Text style={styles.secondaryButtonText}>{t('templates.generate')}</Text>
+          </AnimatedPressable>
+
+          {generatedCount !== null && (
+            <Text testID="templates-generated" style={styles.generatedText}>
+              {generatedCount > 0 ? t('templates.generated', { count: generatedCount }) : t('templates.generatedNone')}
+            </Text>
+          )}
+
+          <BottomSheet
+            visible={formOpen}
+            onClose={() => setFormOpen(false)}
+            title={t('templates.addTitle')}
+            testID="template-form-sheet"
+          >
           <Text style={styles.label}>{t('templates.titleLabel')}</Text>
           <TextInput value={title} onChangeText={setTitle} testID="template-title-input" style={styles.input} />
 
@@ -256,6 +284,7 @@ export default function TemplatesScreen() {
               {generatedCount > 0 ? t('templates.generated', { count: generatedCount }) : t('templates.generatedNone')}
             </Text>
           )}
+          </BottomSheet>
         </>
       )}
     </ScrollView>

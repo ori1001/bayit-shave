@@ -15,6 +15,7 @@ import { AnimatedPressable } from '../../components/AnimatedPressable';
 import { Card } from '../../components/Card';
 import { CategoryIcon } from '../../components/CategoryIcon';
 import { LoadErrorView } from '../../components/LoadErrorView';
+import { describeRecurrence, weekdayName } from '../../lib/recurrence';
 import { BottomSheet } from '../../components/BottomSheet';
 import { LoadingScreen, FadeIn } from '../../components/Motion';
 import { colors, spacing, radii, MISSION_CATEGORIES } from '../../theme';
@@ -133,7 +134,7 @@ export default function TemplatesScreen() {
           <View style={{ flex: 1 }}>
             <Text style={styles.templateTitle}>{template.title}</Text>
             <Text style={styles.templateMeta}>
-              {template.recurrence_rule} · {template.points}
+              {describeRecurrence(template.recurrence_rule)} · {template.points}
             </Text>
           </View>
           {isAdmin && (
@@ -238,7 +239,7 @@ export default function TemplatesScreen() {
                   style={[styles.dayChip, weekday === day && styles.chipActive]}
                 >
                   <Text style={[styles.chipText, weekday === day && styles.chipTextActive]}>
-                    {t(`settings.day_${index}`)}
+                    {weekdayName(index, 'short')}
                   </Text>
                 </AnimatedPressable>
               ))}

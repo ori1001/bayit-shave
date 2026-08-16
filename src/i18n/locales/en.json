@@ -162,14 +162,7 @@
     "weightHint": "A lower weight means a smaller share of the points target. Applies to future balance runs only.",
     "save": "Save settings",
     "saved": "Settings saved",
-    "adminOnly": "Only the house admin can change these settings.",
-    "day_0": "Sun",
-    "day_1": "Mon",
-    "day_2": "Tue",
-    "day_3": "Wed",
-    "day_4": "Thu",
-    "day_5": "Fri",
-    "day_6": "Sat"
+    "adminOnly": "Only the house admin can change these settings."
   },
   "templates": {
     "title": "Recurring chores",
@@ -186,7 +179,9 @@
     "generated": "Created {{count}} missions",
     "generatedNone": "Everything is already scheduled",
     "empty": "No recurring chores yet",
-    "adminOnly": "Only the house admin can manage recurring chores."
+    "adminOnly": "Only the house admin can manage recurring chores.",
+    "everyWeekday": "Every {{day}}",
+    "everyMonthDay": "Monthly on day {{day}}"
   },
   "tabs": {
     "today": "Today",

@@ -14,6 +14,7 @@ import {
 import { AnimatedPressable } from '../components/AnimatedPressable';
 import { Card } from '../components/Card';
 import { LoadErrorView } from '../components/LoadErrorView';
+import { weekdayName } from '../lib/recurrence';
 import { LoadingScreen, FadeIn } from '../components/Motion';
 import { colors, spacing, radii } from '../theme';
 
@@ -149,7 +150,7 @@ export default function SettingsScreen() {
             testID={`balance-day-${day}`}
             style={[styles.dayChip, balanceDay === day && styles.chipActive]}
           >
-            <Text style={[styles.chipText, balanceDay === day && styles.chipTextActive]}>{t(`settings.day_${day}`)}</Text>
+            <Text style={[styles.chipText, balanceDay === day && styles.chipTextActive]}>{weekdayName(day, 'short')}</Text>
           </AnimatedPressable>
         ))}
       </View>

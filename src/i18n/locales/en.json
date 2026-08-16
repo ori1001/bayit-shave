@@ -24,7 +24,8 @@
     "checkEmail": "Almost there — check your inbox",
     "checkEmailBody": "We sent a confirmation link to {{email}}. Open it, then sign in.",
     "backToSignIn": "Back to sign in",
-    "orDivider": "or"
+    "orDivider": "or",
+    "continueWithGoogle": "Continue with Google"
   },
   "today": {
     "greeting": "Today",

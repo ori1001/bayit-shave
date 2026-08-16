@@ -24,7 +24,8 @@
     "checkEmail": "כמעט סיימנו — בדקו את המייל",
     "checkEmailBody": "שלחנו קישור אישור אל {{email}}. פתחו אותו ואז התחברו.",
     "backToSignIn": "חזרה להתחברות",
-    "orDivider": "או"
+    "orDivider": "או",
+    "continueWithGoogle": "המשך עם Google"
   },
   "today": {
     "greeting": "היום",

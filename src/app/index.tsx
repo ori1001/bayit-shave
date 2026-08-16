@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
-import { signUp, signIn } from '../features/auth/api';
+import { signUp, signIn, signInWithGoogle } from '../features/auth/api';
 import { getMyHouseId } from '../features/missions/api';
 import { AnimatedPressable } from '../components/AnimatedPressable';
 import { CategoryIcon } from '../components/CategoryIcon';
@@ -63,6 +63,20 @@ export default function WelcomeScreen() {
       } else {
         await signIn(email, password);
       }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'unknown_error');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleGoogleSignIn() {
+    setError(null);
+    setSubmitting(true);
+    try {
+      // false means the user closed the browser -- a cancellation, not a
+      // failure, so nothing is shown.
+      await signInWithGoogle();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'unknown_error');
     } finally {
@@ -147,6 +161,20 @@ export default function WelcomeScreen() {
         >
           <Ionicons name={mode === 'signUp' ? 'person-add-outline' : 'log-in-outline'} size={18} color={colors.cream} />
           <Text style={styles.primaryButtonText}>{t(mode === 'signUp' ? 'auth.signUp' : 'auth.signIn')}</Text>
+        </AnimatedPressable>
+        <View style={styles.dividerRow}>
+          <View style={styles.dividerLine} />
+          <Text style={styles.dividerText}>{t('auth.orDivider')}</Text>
+          <View style={styles.dividerLine} />
+        </View>
+        <AnimatedPressable
+          onPress={handleGoogleSignIn}
+          disabled={submitting}
+          testID="auth-google"
+          style={styles.googleButton}
+        >
+          <Ionicons name="logo-google" size={18} color={colors.ink} />
+          <Text style={styles.googleButtonText}>{t('auth.continueWithGoogle')}</Text>
         </AnimatedPressable>
         <AnimatedPressable onPress={() => setMode(mode === 'signUp' ? 'signIn' : 'signUp')} testID="auth-switch-mode">
           <Text style={styles.switchModeText}>{t(mode === 'signUp' ? 'auth.switchToSignIn' : 'auth.switchToSignUp')}</Text>
@@ -251,5 +279,36 @@ const styles = StyleSheet.create({
   },
   switchModeText: {
     color: colors.textMuted,
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    width: '100%',
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.border,
+  },
+  dividerText: {
+    color: colors.textMuted,
+    fontSize: 12,
+  },
+  googleButton: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    width: '100%',
+    backgroundColor: colors.surface,
+  },
+  googleButtonText: {
+    color: colors.ink,
+    fontWeight: '700',
   },
 });

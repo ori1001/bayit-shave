@@ -61,7 +61,7 @@
     "categoryLabel": "Category",
     "titleLabel": "Mission name",
     "pointsLabel": "Points (difficulty)",
-    "dueDateLabel": "Due date (YYYY-MM-DD)",
+    "dueDateLabel": "Due date",
     "assignmentPool": "Shared pool",
     "assignmentDirect": "Direct assign",
     "selectMember": "Select member",
@@ -118,8 +118,8 @@
   },
   "unavailability": {
     "title": "Request time off",
-    "periodStartLabel": "From (YYYY-MM-DD)",
-    "periodEndLabel": "To (YYYY-MM-DD)",
+    "periodStartLabel": "Dates away",
+    "periodEndLabel": "To",
     "reasonLabel": "Reason (optional)",
     "submit": "Submit request"
   },
@@ -132,7 +132,7 @@
     "noMissionsThisDay": "No missions on this day",
     "editDate": "Edit date",
     "suggestNewDate": "Suggest new date",
-    "newDateLabel": "New date (YYYY-MM-DD)",
+    "newDateLabel": "New date",
     "save": "Save",
     "cancel": "Cancel",
     "viewOnly": "View only",

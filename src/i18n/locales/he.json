@@ -61,7 +61,7 @@
     "categoryLabel": "קטגוריה",
     "titleLabel": "שם המשימה",
     "pointsLabel": "נקודות (רמת קושי)",
-    "dueDateLabel": "תאריך יעד (YYYY-MM-DD)",
+    "dueDateLabel": "תאריך יעד",
     "assignmentPool": "מאגר משותף",
     "assignmentDirect": "הקצאה ישירה",
     "selectMember": "בחר/י חבר/ה",
@@ -118,8 +118,8 @@
   },
   "unavailability": {
     "title": "בקשת חופש",
-    "periodStartLabel": "מתאריך (YYYY-MM-DD)",
-    "periodEndLabel": "עד תאריך (YYYY-MM-DD)",
+    "periodStartLabel": "תאריכי היעדרות",
+    "periodEndLabel": "עד תאריך",
     "reasonLabel": "סיבה (לא חובה)",
     "submit": "שלח בקשה"
   },
@@ -132,7 +132,7 @@
     "noMissionsThisDay": "אין משימות ביום זה",
     "editDate": "ערוך תאריך",
     "suggestNewDate": "הצע תאריך חדש",
-    "newDateLabel": "תאריך חדש (YYYY-MM-DD)",
+    "newDateLabel": "תאריך חדש",
     "save": "שמור",
     "cancel": "ביטול",
     "viewOnly": "צפייה בלבד",

@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { suggestMission, getHouseMembers, type MissionCategory, type AssignmentMode } from '../../features/missions/api';
 import { AnimatedPressable } from '../../components/AnimatedPressable';
 import { CategoryIcon } from '../../components/CategoryIcon';
+import { DateField } from '../../components/DatePicker';
 import { colors, spacing, radii, MISSION_CATEGORIES } from '../../theme';
 
 export default function SuggestMissionScreen() {
@@ -80,9 +81,12 @@ export default function SuggestMissionScreen() {
       <TextInput value={points} onChangeText={setPoints} keyboardType="numeric" testID="mission-points-input" style={styles.input} />
 
       <Text style={styles.label}>{t('missions.dueDateLabel')}</Text>
-      <TextInput value={dueDate} onChangeText={setDueDate} placeholder="2026-07-20" testID="mission-due-date-input" style={styles.input} 
-          placeholderTextColor={colors.textMuted}
-        />
+      <DateField
+        value={dueDate}
+        onChange={setDueDate}
+        label={t('missions.dueDateLabel')}
+        testID="mission-due-date-input"
+      />
 
       <View style={styles.toggleRow}>
         <AnimatedPressable

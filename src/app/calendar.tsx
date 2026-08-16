@@ -10,6 +10,7 @@ import { CategoryIcon } from '../components/CategoryIcon';
 import { LoadErrorView } from '../components/LoadErrorView';
 import { LoadingScreen, FadeIn } from '../components/Motion';
 import { syncMissionsToDeviceCalendar } from '../features/calendar-sync/api';
+import { DateField } from '../components/DatePicker';
 import { colors, spacing, radii, CATEGORY_META, sectionColors, ICONS, chevronNext, chevronPrev } from '../theme';
 
 export default function CalendarScreen() {
@@ -233,7 +234,14 @@ export default function CalendarScreen() {
                   <View style={{ gap: spacing.xs }}>
                     <Text style={styles.dateInputLabel}>{t('calendar.newDateLabel')}</Text>
                     <View style={styles.editRow}>
-                      <TextInput value={newDateValue} onChangeText={setNewDateValue} testID={`calendar-date-input-${mission.id}`} style={styles.dateInput} />
+                      <View style={{ flex: 1 }}>
+                        <DateField
+                          value={newDateValue}
+                          onChange={setNewDateValue}
+                          label={t('calendar.newDateLabel')}
+                          testID={`calendar-date-input-${mission.id}`}
+                        />
+                      </View>
                       <AnimatedPressable onPress={() => handleSaveDate(mission.id)} testID={`calendar-date-save-${mission.id}`}>
                         <Text style={styles.saveText}>{t('calendar.save')}</Text>
                       </AnimatedPressable>

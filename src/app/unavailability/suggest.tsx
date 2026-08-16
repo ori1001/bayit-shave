@@ -5,6 +5,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { suggestUnavailability } from '../../features/requests/api';
 import { AnimatedPressable } from '../../components/AnimatedPressable';
+import { DateRangeField } from '../../components/DatePicker';
 import { colors, spacing, radii } from '../../theme';
 
 export default function SuggestUnavailabilityScreen() {
@@ -39,14 +40,17 @@ export default function SuggestUnavailabilityScreen() {
       </View>
 
       <Text style={styles.label}>{t('unavailability.periodStartLabel')}</Text>
-      <TextInput value={periodStart} onChangeText={setPeriodStart} placeholder="2026-08-01" testID="unavailability-start-input" style={styles.input} 
-          placeholderTextColor={colors.textMuted}
-        />
-
-      <Text style={styles.label}>{t('unavailability.periodEndLabel')}</Text>
-      <TextInput value={periodEnd} onChangeText={setPeriodEnd} placeholder="2026-08-05" testID="unavailability-end-input" style={styles.input} 
-          placeholderTextColor={colors.textMuted}
-        />
+      {/* One grid takes both ends: first tap sets the start, second the end. */}
+      <DateRangeField
+        start={periodStart}
+        end={periodEnd}
+        onChange={(from, to) => {
+          setPeriodStart(from);
+          setPeriodEnd(to);
+        }}
+        label={t('unavailability.periodStartLabel')}
+        testID="unavailability-range"
+      />
 
       <Text style={styles.label}>{t('unavailability.reasonLabel')}</Text>
       <TextInput value={reason} onChangeText={setReason} testID="unavailability-reason-input" style={styles.input} />

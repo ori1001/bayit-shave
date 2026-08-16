@@ -9,6 +9,7 @@ import { getMyHouseId } from '../features/missions/api';
 import { AnimatedPressable } from '../components/AnimatedPressable';
 import { CategoryIcon } from '../components/CategoryIcon';
 import { Logo, LogoMark } from '../components/Logo';
+import { BrandedLoading } from '../components/Motion';
 import { colors, spacing, radii, MISSION_CATEGORIES } from '../theme';
 
 export default function WelcomeScreen() {
@@ -98,7 +99,14 @@ export default function WelcomeScreen() {
   }
 
   if (hasSession === null) {
-    return <View style={{ flex: 1, backgroundColor: colors.background }} />;
+    // The entry screen's loading frame -- the one shown on every launch while
+    // the stored session is read. A blank view here is what made the app look
+    // like it had failed to start.
+    return (
+      <BrandedLoading>
+        <LogoMark size={96} />
+      </BrandedLoading>
+    );
   }
 
   if (awaitingConfirmation) {

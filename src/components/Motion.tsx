@@ -82,6 +82,39 @@ export function LoadingScreen({ rows = 4, testID = 'loading-screen' }: { rows?: 
 }
 
 /**
+ * Branded loading state for the app's entry screen.
+ *
+ * Skeleton rows suit a content list, but the very first frame after the splash
+ * has no content to stand in for -- a blank background there is exactly what
+ * reads as "the app didn't load". A breathing logo carries the brand across
+ * that gap instead.
+ */
+export function BrandedLoading({
+  children,
+  testID = 'branded-loading',
+}: {
+  children: React.ReactNode;
+  testID?: string;
+}) {
+  const breath = useSharedValue(0);
+
+  useEffect(() => {
+    breath.value = withRepeat(withTiming(1, { duration: 1100, easing: Easing.inOut(Easing.quad) }), -1, true);
+  }, [breath]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: 0.55 + breath.value * 0.45,
+    transform: [{ scale: 0.97 + breath.value * 0.03 }],
+  }));
+
+  return (
+    <View style={styles.branded} testID={testID}>
+      <Animated.View style={animatedStyle}>{children}</Animated.View>
+    </View>
+  );
+}
+
+/**
  * Draws attention to a value that just changed — a quick scale pop.
  * Used when points are credited so completing a chore feels like it landed.
  */
@@ -115,6 +148,12 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: spacing.xl,
     gap: spacing.md,
+    backgroundColor: colors.background,
+  },
+  branded: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: colors.background,
   },
 });

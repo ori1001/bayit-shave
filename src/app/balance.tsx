@@ -7,9 +7,10 @@ import { getMyMembership } from '../features/missions/api';
 import { getPointsPool, getOpenMissions, runBalance, assignMission, type PointsPoolEntry, type OpenMission } from '../features/balance/api';
 import { AnimatedPressable } from '../components/AnimatedPressable';
 import { Card } from '../components/Card';
+import { Avatar } from '../components/Avatar';
 import { LoadErrorView } from '../components/LoadErrorView';
 import { LoadingScreen, FadeIn } from '../components/Motion';
-import { colors, spacing, radii } from '../theme';
+import { colors, spacing, radii, sectionColors, stateColors, ICONS } from '../theme';
 
 export default function BalanceScreen() {
   const { t } = useTranslation();
@@ -72,13 +73,16 @@ export default function BalanceScreen() {
 
   return (
     <View style={styles.screen}>
-      <Text style={styles.title}>{t('balance.title')}</Text>
+      <View style={styles.titleRow}>
+        <Ionicons name={ICONS.balance} size={22} color={sectionColors.balance} />
+        <Text style={styles.title}>{t('balance.title')}</Text>
+      </View>
       <Card testID="balance-house-summary" style={styles.summaryCard}>
         <View style={styles.rowHeader}>
           <Ionicons
-            name={houseBalanced ? 'checkmark-circle' : 'hourglass-outline'}
+            name={houseBalanced ? ICONS.done : ICONS.awaiting}
             size={18}
-            color={houseBalanced ? colors.sage : colors.rose}
+            color={houseBalanced ? stateColors.done : stateColors.pending}
           />
           <Text style={styles.memberName}>{t(houseBalanced ? 'balance.houseBalanced' : 'balance.houseImbalanced')}</Text>
         </View>
@@ -99,11 +103,21 @@ export default function BalanceScreen() {
             <FadeIn index={index}>
             <Card testID={`balance-row-${item.member_id}`} style={styles.row}>
               <View style={styles.rowHeader}>
-                <Ionicons name={onTrack ? 'checkmark-circle' : 'hourglass-outline'} size={18} color={onTrack ? colors.sage : colors.rose} />
+                <Avatar memberId={item.member_id} name={item.name} size={26} />
                 <Text style={styles.memberName}>{item.name}</Text>
+                <View style={styles.trend}>
+                  <Ionicons
+                    name={onTrack ? ICONS.ahead : ICONS.behind}
+                    size={14}
+                    color={onTrack ? stateColors.done : stateColors.overdue}
+                  />
+                  <Text style={[styles.trendText, { color: onTrack ? stateColors.done : stateColors.overdue }]}>
+                    {onTrack ? `+${Math.round(-behind)}` : `-${Math.round(behind)}`}
+                  </Text>
+                </View>
               </View>
               <View style={styles.progressTrack}>
-                <View style={[styles.progressFill, { width: `${progress * 100}%`, backgroundColor: onTrack ? colors.sage : colors.rose }]} />
+                <View style={[styles.progressFill, { width: `${progress * 100}%`, backgroundColor: onTrack ? stateColors.done : stateColors.overdue }]} />
               </View>
               <Text style={styles.detailText}>
                 {t('balance.earned')}: {item.points_earned} · {t('balance.target')}: {Math.round(item.points_target)}
@@ -151,10 +165,25 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
     backgroundColor: colors.background,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
   title: {
     fontSize: 22,
     fontWeight: '800',
     color: colors.ink,
+  },
+  trend: {
+    marginStart: 'auto',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  trendText: {
+    fontSize: 12,
+    fontWeight: '800',
   },
   row: {
     gap: spacing.xs,
@@ -194,7 +223,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: colors.ink,
+    backgroundColor: sectionColors.balance,
     borderRadius: radii.lg,
     padding: spacing.md,
   },

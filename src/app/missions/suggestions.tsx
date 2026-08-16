@@ -17,7 +17,7 @@ import { Card } from '../../components/Card';
 import { CategoryIcon } from '../../components/CategoryIcon';
 import { LoadErrorView } from '../../components/LoadErrorView';
 import { LoadingScreen, FadeIn } from '../../components/Motion';
-import { colors, spacing, radii, type IoniconName } from '../../theme';
+import { colors, spacing, radii, sectionColors, stateColors, ICONS, type IoniconName } from '../../theme';
 
 function suggestionTypeOf(mission: Mission): 'new_mission' | 'points_edit' | 'schedule_edit' {
   if (mission.status === 'pending_approval') {
@@ -116,7 +116,10 @@ export default function SuggestionsScreen() {
 
   return (
     <View style={styles.screen}>
-      <Text style={styles.title}>{t('suggestions.title')}</Text>
+      <View style={styles.titleRow}>
+        <Ionicons name={ICONS.inbox} size={22} color={sectionColors.inbox} />
+        <Text style={styles.title}>{t('suggestions.title')}</Text>
+      </View>
       <FlatList
         data={items}
         keyExtractor={(item) => (item.kind === 'mission' ? item.mission.id : item.kind === 'swap' ? item.swap.id : item.unavailability.id)}
@@ -126,7 +129,7 @@ export default function SuggestionsScreen() {
           if (item.kind === 'mission') {
             const kind = suggestionTypeOf(item.mission);
             return (
-              <Card testID={`suggestion-${item.mission.id}`} style={styles.card}>
+              <Card testID={`suggestion-${item.mission.id}`} style={[styles.card, { borderStartWidth: 3, borderStartColor: stateColors.proposed }]}>
                 <View style={styles.cardHeader}>
                   <CategoryIcon category={item.mission.category} size={18} />
                   <Ionicons name={KIND_ICON[kind]} size={14} color={colors.textMuted} />
@@ -155,7 +158,7 @@ export default function SuggestionsScreen() {
 
           if (item.kind === 'swap') {
             return (
-              <Card testID={`suggestion-swap-${item.swap.id}`} style={styles.card}>
+              <Card testID={`suggestion-swap-${item.swap.id}`} style={[styles.card, { borderStartWidth: 3, borderStartColor: sectionColors.calendar }]}>
                 <View style={styles.cardHeader}>
                   <Ionicons name="swap-horizontal-outline" size={18} color={colors.indigo} />
                   <Text style={styles.cardKind}>{t('suggestions.swap')}</Text>
@@ -177,7 +180,10 @@ export default function SuggestionsScreen() {
           }
 
           return (
-            <Card testID={`suggestion-unavailability-${item.unavailability.id}`} style={styles.card}>
+            <Card
+              testID={`suggestion-unavailability-${item.unavailability.id}`}
+              style={[styles.card, { borderStartWidth: 3, borderStartColor: sectionColors.unavailability }]}
+            >
               <View style={styles.cardHeader}>
                 <Ionicons name="airplane-outline" size={18} color={colors.violet} />
                 <Text style={styles.cardKind}>{t('suggestions.unavailability')}</Text>
@@ -216,6 +222,11 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
     gap: spacing.lg,
     backgroundColor: colors.background,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
   title: {
     fontSize: 22,

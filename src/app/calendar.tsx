@@ -10,10 +10,10 @@ import { CategoryIcon } from '../components/CategoryIcon';
 import { LoadErrorView } from '../components/LoadErrorView';
 import { LoadingScreen, FadeIn } from '../components/Motion';
 import { syncMissionsToDeviceCalendar } from '../features/calendar-sync/api';
-import { colors, spacing, radii, CATEGORY_META } from '../theme';
+import { colors, spacing, radii, CATEGORY_META, sectionColors, ICONS, chevronNext, chevronPrev } from '../theme';
 
 export default function CalendarScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { houseId } = useLocalSearchParams<{ houseId: string }>();
 
   const today = new Date();
@@ -147,17 +147,23 @@ export default function CalendarScreen() {
 
   return (
     <View style={styles.screen}>
-      <Text style={styles.title}>{t('calendar.title')}</Text>
+      <View style={styles.titleRow}>
+        <Ionicons name={ICONS.calendar} size={22} color={sectionColors.calendar} />
+        <Text style={styles.title}>{t('calendar.title')}</Text>
+      </View>
 
       <View style={styles.monthNav}>
         <AnimatedPressable onPress={handlePrevMonth} testID="calendar-prev-month" style={styles.monthNavButton} accessibilityLabel={t('calendar.previousMonth')}>
-          <Ionicons name="chevron-back" size={20} color={colors.ink} />
+          <Ionicons name={chevronPrev()} size={20} color={sectionColors.calendar} />
         </AnimatedPressable>
         <Text style={styles.monthLabel}>
-          {year}-{String(month).padStart(2, '0')}
+          {new Date(year, month - 1, 1).toLocaleDateString(i18n.language === 'he' ? 'he-IL' : 'en-US', {
+            month: 'long',
+            year: 'numeric',
+          })}
         </Text>
         <AnimatedPressable onPress={handleNextMonth} testID="calendar-next-month" style={styles.monthNavButton} accessibilityLabel={t('calendar.nextMonth')}>
-          <Ionicons name="chevron-forward" size={20} color={colors.ink} />
+          <Ionicons name={chevronNext()} size={20} color={sectionColors.calendar} />
         </AnimatedPressable>
       </View>
 
@@ -274,6 +280,11 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
     gap: spacing.md,
     backgroundColor: colors.background,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
   title: {
     fontSize: 22,

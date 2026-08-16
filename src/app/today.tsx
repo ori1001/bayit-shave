@@ -10,9 +10,22 @@ import { registerForPushNotifications } from '../features/notifications/api';
 import { AnimatedPressable } from '../components/AnimatedPressable';
 import { Card } from '../components/Card';
 import { CategoryIcon } from '../components/CategoryIcon';
+import { MissionRow } from '../components/MissionRow';
+import { TabBar } from '../components/TabBar';
+import { MoreSheet } from '../components/MoreSheet';
 import { LoadErrorView } from '../components/LoadErrorView';
 import { LoadingScreen, FadeIn } from '../components/Motion';
-import { colors, spacing, radii } from '../theme';
+import { colors, spacing, radii, sectionColors, ICONS } from '../theme';
+
+/** Maps a mission onto the shared row's visual state. */
+function rowStateFor(mission: Mission): 'done' | 'overdue' | 'proposed' | 'open' {
+  if (mission.status === 'done') return 'done';
+  if (mission.proposed_points !== null || mission.proposed_due_date || mission.proposed_assigned_to) return 'proposed';
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  if (mission.due_date < todayStr) return 'overdue';
+  return 'open';
+}
 
 export default function TodayScreen() {
   const { t } = useTranslation();
@@ -23,6 +36,7 @@ export default function TodayScreen() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [editingMissionId, setEditingMissionId] = useState<string | null>(null);
   const [editPointsValue, setEditPointsValue] = useState('');
   const [pointsEditFeedback, setPointsEditFeedback] = useState<string | null>(null);
@@ -162,18 +176,25 @@ export default function TodayScreen() {
         renderItem={({ item, index }) => (
           <FadeIn index={index} style={{ gap: spacing.xs }}>
             <AnimatedPressable onPress={() => handleComplete(item.id)} testID={`mission-row-${item.id}`}>
-              <Card style={styles.missionCard}>
-                <CategoryIcon category={item.category} />
-                <Text style={styles.missionTitle}>{item.title}</Text>
-                <Text style={styles.missionPoints}>{item.points}</Text>
-                <AnimatedPressable onPress={() => startEditPoints(item)} testID={`edit-points-${item.id}`} style={styles.smallAction}>
-                  <Text style={styles.smallActionText}>{t('missions.editPoints')}</Text>
-                </AnimatedPressable>
-                <AnimatedPressable onPress={() => setSwappingMissionId(item.id)} testID={`swap-${item.id}`} style={styles.smallAction} accessibilityLabel={t('swap.requestSwap')}>
-                  <Ionicons name="swap-horizontal-outline" size={16} color={colors.textMuted} />
-                </AnimatedPressable>
-              </Card>
+              <MissionRow
+                title={item.title}
+                category={item.category}
+                points={item.points}
+                state={rowStateFor(item)}
+                assigneeId={item.assigned_to}
+                assigneeName={members.find((m) => m.id === item.assigned_to)?.name}
+              />
             </AnimatedPressable>
+            <View style={styles.rowActions}>
+              <AnimatedPressable onPress={() => startEditPoints(item)} testID={`edit-points-${item.id}`} style={styles.smallAction}>
+                <Ionicons name={ICONS.edit} size={14} color={colors.textMuted} />
+                <Text style={styles.smallActionText}>{t('missions.editPoints')}</Text>
+              </AnimatedPressable>
+              <AnimatedPressable onPress={() => setSwappingMissionId(item.id)} testID={`swap-${item.id}`} style={styles.smallAction} accessibilityLabel={t('swap.requestSwap')}>
+                <Ionicons name={ICONS.swap} size={14} color={sectionColors.calendar} />
+                <Text style={styles.smallActionText}>{t('swap.requestSwap')}</Text>
+              </AnimatedPressable>
+            </View>
             {editingMissionId === item.id && (
               <View style={styles.inlineEditRow}>
                 <TextInput
@@ -211,70 +232,24 @@ export default function TodayScreen() {
           </FadeIn>
         )}
       />
-      <View style={{ gap: spacing.sm }}>
-        <AnimatedPressable
-          onPress={() => router.push({ pathname: '/missions/suggest', params: { houseId: houseId ?? '' } })}
-          testID="today-suggest-mission"
-          style={styles.primaryButton}
-        >
-          <Ionicons name="add-circle-outline" size={18} color={colors.cream} />
-          <Text style={styles.primaryButtonText}>{t('today.suggestMission')}</Text>
-        </AnimatedPressable>
-        <AnimatedPressable
-          onPress={() => router.push({ pathname: '/balance', params: { houseId: houseId ?? '' } })}
-          testID="today-balance"
-          style={[styles.secondaryButton, { borderColor: colors.teal }]}
-        >
-          <Ionicons name="stats-chart-outline" size={18} color={colors.teal} />
-          <Text style={[styles.secondaryButtonText, { color: colors.teal }]}>{t('today.balance')}</Text>
-        </AnimatedPressable>
-        <AnimatedPressable
-          onPress={() => router.push({ pathname: '/unavailability/suggest', params: { houseId: houseId ?? '' } })}
-          testID="today-unavailability"
-          style={[styles.secondaryButton, { borderColor: colors.violet }]}
-        >
-          <Ionicons name="airplane-outline" size={18} color={colors.violet} />
-          <Text style={[styles.secondaryButtonText, { color: colors.violet }]}>{t('today.unavailability')}</Text>
-        </AnimatedPressable>
-        <AnimatedPressable
-          onPress={() => router.push({ pathname: '/calendar', params: { houseId: houseId ?? '' } })}
-          testID="today-calendar"
-          style={[styles.secondaryButton, { borderColor: colors.indigo }]}
-        >
-          <Ionicons name="calendar-outline" size={18} color={colors.indigo} />
-          <Text style={[styles.secondaryButtonText, { color: colors.indigo }]}>{t('today.calendar')}</Text>
-        </AnimatedPressable>
-        {isAdmin && (
-          <AnimatedPressable
-            onPress={() => router.push({ pathname: '/missions/suggestions', params: { houseId: houseId ?? '' } })}
-            testID="today-suggestions-inbox"
-            style={[styles.secondaryButton, { borderColor: colors.ink }]}
-          >
-            <Ionicons name="file-tray-full-outline" size={18} color={colors.ink} />
-            <Text style={[styles.secondaryButtonText, { color: colors.ink }]}>{t('today.suggestions')}</Text>
-          </AnimatedPressable>
-        )}
-        {isAdmin && (
-          <AnimatedPressable
-            onPress={() => router.push({ pathname: '/missions/templates', params: { houseId: houseId ?? '' } })}
-            testID="today-templates"
-            style={[styles.secondaryButton, { borderColor: colors.sage }]}
-          >
-            <Ionicons name="repeat-outline" size={18} color={colors.sage} />
-            <Text style={[styles.secondaryButtonText, { color: colors.sage }]}>{t('today.templates')}</Text>
-          </AnimatedPressable>
-        )}
-        {isAdmin && (
-          <AnimatedPressable
-            onPress={() => router.push({ pathname: '/settings', params: { houseId: houseId ?? '' } })}
-            testID="today-settings"
-            style={[styles.secondaryButton, { borderColor: colors.amber }]}
-          >
-            <Ionicons name="settings-outline" size={18} color={colors.amber} />
-            <Text style={[styles.secondaryButtonText, { color: colors.amber }]}>{t('today.settings')}</Text>
-          </AnimatedPressable>
-        )}
-      </View>
+      <AnimatedPressable
+        onPress={() => router.push({ pathname: '/missions/suggest', params: { houseId: houseId ?? '' } })}
+        testID="today-suggest-mission"
+        style={styles.primaryButton}
+      >
+        <Ionicons name={ICONS.add} size={18} color={colors.cream} />
+        <Text style={styles.primaryButtonText}>{t('today.suggestMission')}</Text>
+      </AnimatedPressable>
+
+      <TabBar
+        active="today"
+        houseId={houseId ?? ''}
+        isAdmin={isAdmin}
+        inboxCount={incomingSwaps.length}
+        onMore={() => setMoreOpen(true)}
+      />
+
+      <MoreSheet visible={moreOpen} onClose={() => setMoreOpen(false)} houseId={houseId ?? ''} isAdmin={isAdmin} />
     </View>
   );
 }
@@ -337,7 +312,15 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontWeight: '700',
   },
+  rowActions: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    paddingStart: spacing.xl,
+  },
   smallAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
     padding: spacing.xs,
   },
   smallActionText: {

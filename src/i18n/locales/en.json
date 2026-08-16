@@ -174,5 +174,20 @@
     "generatedNone": "Everything is already scheduled",
     "empty": "No recurring chores yet",
     "adminOnly": "Only the house admin can manage recurring chores."
+  },
+  "tabs": {
+    "today": "Today",
+    "calendar": "Calendar",
+    "balance": "Balance",
+    "inbox": "Inbox",
+    "more": "More"
+  },
+  "more": {
+    "title": "More",
+    "recurring": "Recurring chores",
+    "settings": "House settings",
+    "timeOff": "Request time off",
+    "suggestions": "Suggestions inbox",
+    "close": "Close"
   }
 }

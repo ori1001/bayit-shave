@@ -7,7 +7,8 @@ import { supabase } from '../lib/supabase';
 import { signUp, signIn } from '../features/auth/api';
 import { getMyHouseId } from '../features/missions/api';
 import { AnimatedPressable } from '../components/AnimatedPressable';
-import { colors, spacing, radii } from '../theme';
+import { CategoryIcon } from '../components/CategoryIcon';
+import { colors, spacing, radii, MISSION_CATEGORIES } from '../theme';
 
 export default function WelcomeScreen() {
   const { t } = useTranslation();
@@ -18,6 +19,7 @@ export default function WelcomeScreen() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
 
   useEffect(() => {
     supabase.auth
@@ -51,7 +53,13 @@ export default function WelcomeScreen() {
     setSubmitting(true);
     try {
       if (mode === 'signUp') {
-        await signUp(email, password);
+        const { needsEmailConfirmation } = await signUp(email, password);
+        // Sign-up succeeds without a session when the project requires email
+        // confirmation. Saying so is the whole point -- otherwise the screen
+        // just sits there and looks broken.
+        if (needsEmailConfirmation) {
+          setAwaitingConfirmation(true);
+        }
       } else {
         await signIn(email, password);
       }
@@ -66,14 +74,45 @@ export default function WelcomeScreen() {
     return <View style={{ flex: 1, backgroundColor: colors.background }} />;
   }
 
+  if (awaitingConfirmation) {
+    return (
+      <View style={styles.screen} testID="auth-awaiting-confirmation">
+        <View style={styles.brandBadge}>
+          <Ionicons name="mail-unread-outline" size={34} color={colors.cream} />
+        </View>
+        <Text style={styles.appName}>{t('auth.checkEmail')}</Text>
+        <Text style={styles.tagline}>{t('auth.checkEmailBody', { email })}</Text>
+        <AnimatedPressable
+          onPress={() => {
+            setAwaitingConfirmation(false);
+            setMode('signIn');
+            setPassword('');
+          }}
+          testID="auth-back-to-signin"
+          style={styles.primaryButton}
+        >
+          <Ionicons name="log-in-outline" size={18} color={colors.cream} />
+          <Text style={styles.primaryButtonText}>{t('auth.backToSignIn')}</Text>
+        </AnimatedPressable>
+      </View>
+    );
+  }
+
   if (!hasSession) {
     return (
       <View style={styles.screen}>
-        <View style={styles.brand}>
-          <Ionicons name="home-outline" size={36} color={colors.ink} />
-          <Text style={styles.appName}>{t('onboarding.appName')}</Text>
+        <View style={styles.brandBadge}>
+          <Ionicons name="home" size={34} color={colors.cream} />
         </View>
+        <Text style={styles.appName}>{t('onboarding.appName')}</Text>
         <Text style={styles.tagline}>{t('onboarding.tagline')}</Text>
+        {/* The category palette is the app's whole visual identity and used to
+            appear only after sign-in, leaving the first screen colourless. */}
+        <View style={styles.categoryStrip}>
+          {MISSION_CATEGORIES.filter((c) => c !== 'other').map((category) => (
+            <CategoryIcon key={category} category={category} size={26} />
+          ))}
+        </View>
         <TextInput
           value={email}
           onChangeText={setEmail}
@@ -118,10 +157,10 @@ export default function WelcomeScreen() {
 
   return (
     <View style={styles.screen}>
-      <View style={styles.brand}>
-        <Ionicons name="home-outline" size={36} color={colors.ink} />
-        <Text style={styles.appName}>{t('onboarding.appName')}</Text>
+      <View style={styles.brandBadge}>
+        <Ionicons name="home" size={34} color={colors.cream} />
       </View>
+      <Text style={styles.appName}>{t('onboarding.appName')}</Text>
       <Text style={styles.tagline}>{t('onboarding.tagline')}</Text>
       <View style={{ width: '100%', gap: spacing.md, marginTop: spacing.lg }}>
         <AnimatedPressable onPress={() => router.push('/onboarding/create-house')} testID="welcome-create-house" style={styles.primaryButton}>
@@ -146,10 +185,20 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     backgroundColor: colors.background,
   },
-  brand: {
-    flexDirection: 'row',
+  brandBadge: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     alignItems: 'center',
-    gap: spacing.sm,
+    justifyContent: 'center',
+    backgroundColor: colors.ink,
+  },
+  categoryStrip: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.sm,
   },
   appName: {
     fontSize: 28,

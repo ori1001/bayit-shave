@@ -20,7 +20,11 @@
     "signUp": "הרשמה",
     "signIn": "התחברות",
     "switchToSignIn": "כבר יש לך חשבון? התחבר/י",
-    "switchToSignUp": "אין לך חשבון? הירשם/י"
+    "switchToSignUp": "אין לך חשבון? הירשם/י",
+    "checkEmail": "כמעט סיימנו — בדקו את המייל",
+    "checkEmailBody": "שלחנו קישור אישור אל {{email}}. פתחו אותו ואז התחברו.",
+    "backToSignIn": "חזרה להתחברות",
+    "orDivider": "או"
   },
   "today": {
     "greeting": "היום",

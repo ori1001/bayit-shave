@@ -20,7 +20,11 @@
     "signUp": "Sign up",
     "signIn": "Sign in",
     "switchToSignIn": "Already have an account? Sign in",
-    "switchToSignUp": "Don't have an account? Sign up"
+    "switchToSignUp": "Don't have an account? Sign up",
+    "checkEmail": "Almost there — check your inbox",
+    "checkEmailBody": "We sent a confirmation link to {{email}}. Open it, then sign in.",
+    "backToSignIn": "Back to sign in",
+    "orDivider": "or"
   },
   "today": {
     "greeting": "Today",

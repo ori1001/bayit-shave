@@ -16,7 +16,9 @@ export function CategoryIcon({ category, size = 22, testID }: CategoryIconProps)
       testID={testID}
       style={[
         styles.badge,
-        { width: badgeSize, height: badgeSize, borderRadius: badgeSize / 2, backgroundColor: `${meta.color}22` },
+        // 0x22 alpha washed the badge out almost to the page background; 0x33
+        // keeps it a tint rather than a block of colour but stays legible.
+        { width: badgeSize, height: badgeSize, borderRadius: badgeSize / 2, backgroundColor: `${meta.color}33` },
       ]}
     >
       <Ionicons name={meta.icon} size={size * 0.64} color={meta.color} />

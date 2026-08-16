@@ -1,5 +1,5 @@
-import { I18nManager } from 'react-native';
 import type { IoniconName } from './categories';
+import { isRTL } from '../i18n/direction';
 
 /**
  * One icon per thing in the app.
@@ -58,9 +58,9 @@ export const ICONS = {
  * mean "back". These resolve against the active direction instead.
  */
 export function chevronNext(): IoniconName {
-  return (I18nManager.isRTL ? 'chevron-back' : 'chevron-forward') as IoniconName;
+  return (isRTL() ? 'chevron-back' : 'chevron-forward') as IoniconName;
 }
 
 export function chevronPrev(): IoniconName {
-  return (I18nManager.isRTL ? 'chevron-forward' : 'chevron-back') as IoniconName;
+  return (isRTL() ? 'chevron-forward' : 'chevron-back') as IoniconName;
 }

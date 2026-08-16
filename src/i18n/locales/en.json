@@ -12,7 +12,20 @@
     "shareCodeIntro": "Share this invite code with your housemates so they can join:",
     "copyCode": "Copy code",
     "codeCopied": "Copied",
-    "goToHouse": "Go to my house"
+    "goToHouse": "Go to my house",
+    "skip": "Skip",
+    "next": "Next",
+    "getStarted": "Get started",
+    "s1Title": "One home, shared fairly",
+    "s1Body": "Chores split so nobody keeps score in their head.",
+    "s2Title": "Not every chore is equal",
+    "s2Body": "Dishes are 5. A deep clean is 30. Points say what is fair.",
+    "s3Title": "It evens out",
+    "s3Body": "Whoever is behind gets the next chore. Automatically.",
+    "s4Title": "Life happens",
+    "s4Body": "Swap a chore, take time off, suggest a change.",
+    "s5Title": "Let us set up your house",
+    "s5Body": "Create a new house, or join one with an invite code."
   },
   "auth": {
     "emailLabel": "Email",

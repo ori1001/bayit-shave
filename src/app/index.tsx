@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
 import { signUp, signIn, signInWithGoogle, resendConfirmation, openMailApp } from '../features/auth/api';
 import { getMyHouseId } from '../features/missions/api';
+import { hasSeenIntro } from '../features/onboarding/intro';
 import { AnimatedPressable } from '../components/AnimatedPressable';
 import { CategoryIcon } from '../components/CategoryIcon';
 import { Logo, LogoMark } from '../components/Logo';
@@ -23,6 +24,18 @@ export default function WelcomeScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
   const [resent, setResent] = useState(false);
+
+  useEffect(() => {
+    // First launch goes to the intro before the sign-up form, so the app is
+    // explained before an email is asked for.
+    hasSeenIntro()
+      .then((seen) => {
+        if (!seen) {
+          router.replace('/onboarding/intro');
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     supabase.auth

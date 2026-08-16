@@ -356,6 +356,7 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
     width: 80,
     backgroundColor: colors.surface,
+    color: colors.ink,
   },
   saveText: {
     color: colors.sage,

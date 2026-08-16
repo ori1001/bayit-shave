@@ -121,6 +121,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     padding: spacing.md,
     backgroundColor: colors.surface,
+    color: colors.ink,
   },
   errorText: {
     color: colors.rose,

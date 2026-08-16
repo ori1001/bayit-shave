@@ -310,6 +310,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     padding: spacing.md,
     backgroundColor: colors.surface,
+    color: colors.ink,
   },
   chipRow: {
     flexDirection: 'row',

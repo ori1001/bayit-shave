@@ -39,10 +39,14 @@ export default function SuggestUnavailabilityScreen() {
       </View>
 
       <Text style={styles.label}>{t('unavailability.periodStartLabel')}</Text>
-      <TextInput value={periodStart} onChangeText={setPeriodStart} placeholder="2026-08-01" testID="unavailability-start-input" style={styles.input} />
+      <TextInput value={periodStart} onChangeText={setPeriodStart} placeholder="2026-08-01" testID="unavailability-start-input" style={styles.input} 
+          placeholderTextColor={colors.textMuted}
+        />
 
       <Text style={styles.label}>{t('unavailability.periodEndLabel')}</Text>
-      <TextInput value={periodEnd} onChangeText={setPeriodEnd} placeholder="2026-08-05" testID="unavailability-end-input" style={styles.input} />
+      <TextInput value={periodEnd} onChangeText={setPeriodEnd} placeholder="2026-08-05" testID="unavailability-end-input" style={styles.input} 
+          placeholderTextColor={colors.textMuted}
+        />
 
       <Text style={styles.label}>{t('unavailability.reasonLabel')}</Text>
       <TextInput value={reason} onChangeText={setReason} testID="unavailability-reason-input" style={styles.input} />
@@ -86,6 +90,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     padding: spacing.md,
     backgroundColor: colors.surface,
+    color: colors.ink,
   },
   errorText: {
     color: colors.rose,

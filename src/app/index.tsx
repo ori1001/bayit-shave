@@ -82,6 +82,8 @@ export default function WelcomeScreen() {
           autoCapitalize="none"
           keyboardType="email-address"
           style={styles.input}
+        
+          placeholderTextColor={colors.textMuted}
         />
         <TextInput
           value={password}
@@ -90,6 +92,8 @@ export default function WelcomeScreen() {
           testID="auth-password-input"
           secureTextEntry
           style={styles.input}
+        
+          placeholderTextColor={colors.textMuted}
         />
         {error && (
           <Text testID="auth-error" style={styles.errorText}>
@@ -163,6 +167,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     padding: spacing.md,
     backgroundColor: colors.surface,
+    color: colors.ink,
   },
   errorText: {
     color: colors.rose,

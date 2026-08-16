@@ -271,6 +271,7 @@ const styles = StyleSheet.create({
     width: 72,
     textAlign: 'center',
     backgroundColor: colors.surface,
+    color: colors.ink,
   },
   errorText: {
     color: colors.rose,

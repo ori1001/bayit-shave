@@ -80,7 +80,9 @@ export default function SuggestMissionScreen() {
       <TextInput value={points} onChangeText={setPoints} keyboardType="numeric" testID="mission-points-input" style={styles.input} />
 
       <Text style={styles.label}>{t('missions.dueDateLabel')}</Text>
-      <TextInput value={dueDate} onChangeText={setDueDate} placeholder="2026-07-20" testID="mission-due-date-input" style={styles.input} />
+      <TextInput value={dueDate} onChangeText={setDueDate} placeholder="2026-07-20" testID="mission-due-date-input" style={styles.input} 
+          placeholderTextColor={colors.textMuted}
+        />
 
       <View style={styles.toggleRow}>
         <AnimatedPressable
@@ -182,6 +184,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     padding: spacing.md,
     backgroundColor: colors.surface,
+    color: colors.ink,
   },
   toggleRow: {
     flexDirection: 'row',

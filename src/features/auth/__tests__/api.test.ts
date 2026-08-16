@@ -20,13 +20,31 @@ jest.mock('../../../lib/supabase', () => ({
 
 describe('signUp', () => {
   it('returns the session data on success', async () => {
+    (Linking.createURL as jest.Mock).mockReturnValue('bayitshave://auth/callback');
     (supabase.auth.signUp as jest.Mock).mockResolvedValue({
       data: { user: { id: 'u1' }, session: { access_token: 'tok' } },
       error: null,
     });
     const result = await signUp('a@example.com', 'Test1234!');
-    expect(supabase.auth.signUp).toHaveBeenCalledWith({ email: 'a@example.com', password: 'Test1234!' });
     expect(result.session?.access_token).toBe('tok');
+  });
+
+  it('sends the confirmation link back to this app, not the project Site URL', async () => {
+    // The Supabase project is shared with another app, so relying on the
+    // default Site URL opened that app when confirming here.
+    (Linking.createURL as jest.Mock).mockReturnValue('bayitshave://auth/callback');
+    (supabase.auth.signUp as jest.Mock).mockResolvedValue({
+      data: { user: { id: 'u1' }, session: null },
+      error: null,
+    });
+
+    await signUp('a@example.com', 'Test1234!');
+
+    expect(supabase.auth.signUp).toHaveBeenCalledWith({
+      email: 'a@example.com',
+      password: 'Test1234!',
+      options: { emailRedirectTo: 'bayitshave://auth/callback' },
+    });
   });
 
   it('throws the Supabase error message on failure', async () => {
@@ -139,10 +157,17 @@ describe('signInWithGoogle', () => {
 describe('confirmation helpers', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it('resends the signup confirmation for the address', async () => {
+  it('resends the confirmation with this app as the return target', async () => {
+    (Linking.createURL as jest.Mock).mockReturnValue('bayitshave://auth/callback');
     (supabase.auth.resend as jest.Mock).mockResolvedValue({ error: null });
+
     await resendConfirmation('a@b.com');
-    expect(supabase.auth.resend).toHaveBeenCalledWith({ type: 'signup', email: 'a@b.com' });
+
+    expect(supabase.auth.resend).toHaveBeenCalledWith({
+      type: 'signup',
+      email: 'a@b.com',
+      options: { emailRedirectTo: 'bayitshave://auth/callback' },
+    });
   });
 
   it('surfaces a rate-limit message rather than failing silently', async () => {

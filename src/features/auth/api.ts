@@ -17,7 +17,16 @@ export interface SignUpResult {
 }
 
 export async function signUp(email: string, password: string): Promise<SignUpResult> {
-  const { data, error } = await supabase.auth.signUp({ email, password });
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      // Must be explicit. Without it Supabase sends the confirmation link to
+      // the project's Site URL, and this project is shared with another app --
+      // so confirming here opened that app instead of this one.
+      emailRedirectTo: Linking.createURL('auth/callback'),
+    },
+  });
   if (error) {
     throw new Error(error.message);
   }
@@ -86,7 +95,13 @@ export async function signInWithGoogle(): Promise<boolean> {
 
 /** Re-sends the confirmation link for an address that has not confirmed yet. */
 export async function resendConfirmation(email: string): Promise<void> {
-  const { error } = await supabase.auth.resend({ type: 'signup', email });
+  const { error } = await supabase.auth.resend({
+    type: 'signup',
+    email,
+    // Same reason as signUp: without this the resent link points at the
+    // project's Site URL, which belongs to a different app.
+    options: { emailRedirectTo: Linking.createURL('auth/callback') },
+  });
   if (error) {
     throw new Error(error.message);
   }

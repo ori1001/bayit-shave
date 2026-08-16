@@ -58,7 +58,8 @@
     "lint": "expo lint",
     "test": "jest",
     "build:android:preview": "eas build --platform android --profile preview",
-    "build:ios:preview": "eas build --platform ios --profile preview"
+    "build:ios:preview": "eas build --platform ios --profile preview",
+    "test:native": "node e2e/native/smoke.mjs"
   },
   "private": true
 }

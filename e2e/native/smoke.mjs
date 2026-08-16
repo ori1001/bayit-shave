@@ -46,7 +46,15 @@ await new Promise((r) => setTimeout(r, 35_000));
 dismissDevMenu();
 await new Promise((r) => setTimeout(r, 3_000));
 
-await step('app boots to the welcome screen', async () => {
+// A fresh install has no intro flag, so onboarding is the first thing shown.
+// This is the behaviour spec 003 introduced; the welcome screen is behind it.
+await step('a fresh install opens onboarding, not the sign-up form', async () => {
+  await waitFor('intro-pager', { timeout: 60_000 });
+  await waitFor('intro-skip');
+});
+
+await step('onboarding can be skipped through to sign-up', async () => {
+  await tap('intro-skip');
   await waitFor('auth-email-input', { timeout: 60_000 });
 });
 

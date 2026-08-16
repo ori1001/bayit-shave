@@ -8,6 +8,7 @@ import { getPointsPool, getOpenMissions, runBalance, assignMission, type PointsP
 import { AnimatedPressable } from '../components/AnimatedPressable';
 import { Card } from '../components/Card';
 import { Avatar } from '../components/Avatar';
+import * as haptics from '../lib/haptics';
 import { LoadErrorView } from '../components/LoadErrorView';
 import { LoadingScreen, FadeIn } from '../components/Motion';
 import { colors, spacing, radii, sectionColors, stateColors, ICONS } from '../theme';
@@ -46,6 +47,7 @@ export default function BalanceScreen() {
     setRunning(true);
     try {
       await runBalance(houseId);
+      haptics.success();
       await load();
     } finally {
       setRunning(false);

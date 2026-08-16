@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { getMyHouseId, getMyMembership, getTodayMissions, getHouseMembers, editMissionPoints, type Mission } from '../features/missions/api';
 import { completeMissionWithQueue, drainQueue, readQueue } from '../features/offline/queue';
+import * as haptics from '../lib/haptics';
 import { getMyIncomingSwaps, suggestSwap, respondSwap, type SwapRequest } from '../features/requests/api';
 import { registerForPushNotifications } from '../features/notifications/api';
 import { AnimatedPressable } from '../components/AnimatedPressable';
@@ -37,6 +38,7 @@ export default function TodayScreen() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [justCompletedId, setJustCompletedId] = useState<string | null>(null);
   const [editingMissionId, setEditingMissionId] = useState<string | null>(null);
   const [editPointsValue, setEditPointsValue] = useState('');
   const [pointsEditFeedback, setPointsEditFeedback] = useState<string | null>(null);
@@ -88,6 +90,13 @@ export default function TodayScreen() {
   }, []);
 
   async function handleComplete(missionId: string) {
+    // Fires before the round-trip: the completion is already recorded locally
+    // (queued if offline), so the tap has genuinely landed by the time it is
+    // felt. Waiting on the network would make the app's fastest action feel slow.
+    haptics.success();
+    setJustCompletedId(missionId);
+    setTimeout(() => setJustCompletedId(null), 700);
+
     const { synced } = await completeMissionWithQueue(missionId);
     // An unsynced tap is recorded locally, not lost, so say so rather than
     // failing silently or pretending the mission is done on the server.
@@ -111,6 +120,7 @@ export default function TodayScreen() {
       }
       await load();
     } catch (e) {
+      haptics.error();
       setPointsEditError(e instanceof Error ? e.message : t('missions.editPointsError'));
     }
   }
@@ -122,6 +132,7 @@ export default function TodayScreen() {
   }
 
   async function handleRespondSwap(swapId: string, decision: 'accept' | 'decline') {
+    haptics.decide();
     await respondSwap(swapId, decision);
     await load();
   }
@@ -180,7 +191,7 @@ export default function TodayScreen() {
                 title={item.title}
                 category={item.category}
                 points={item.points}
-                state={rowStateFor(item)}
+                state={justCompletedId === item.id ? 'done' : rowStateFor(item)}
                 assigneeId={item.assigned_to}
                 assigneeName={members.find((m) => m.id === item.assigned_to)?.name}
               />

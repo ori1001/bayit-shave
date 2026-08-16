@@ -17,6 +17,7 @@ import { Card } from '../../components/Card';
 import { CategoryIcon } from '../../components/CategoryIcon';
 import { LoadErrorView } from '../../components/LoadErrorView';
 import { LoadingScreen, FadeIn } from '../../components/Motion';
+import * as haptics from '../../lib/haptics';
 import { colors, spacing, radii, sectionColors, stateColors, ICONS, type IoniconName } from '../../theme';
 
 function suggestionTypeOf(mission: Mission): 'new_mission' | 'points_edit' | 'schedule_edit' {
@@ -92,16 +93,19 @@ export default function SuggestionsScreen() {
   }, [houseId]);
 
   async function handleMissionDecision(mission: Mission, decision: 'approve' | 'reject') {
+    haptics.decide();
     await resolveSuggestion(suggestionTypeOf(mission), mission.id, decision);
     await load();
   }
 
   async function handleSwapDecision(swap: SwapRequest, decision: 'approve' | 'reject') {
+    haptics.decide();
     await resolveSwap(swap.id, decision);
     await load();
   }
 
   async function handleUnavailabilityDecision(unavailability: UnavailabilityRequest, decision: 'approve' | 'reject') {
+    haptics.decide();
     await resolveUnavailability(unavailability.id, decision);
     await load();
   }

@@ -1,4 +1,5 @@
 import { supabase } from '../../lib/supabase';
+import { getCurrentUserId, getCachedHouseId, getCachedMembership } from '../auth/session';
 
 export type MissionCategory = 'dishes' | 'clean' | 'laundry' | 'trash' | 'shop' | 'pets' | 'garden' | 'bath' | 'other';
 export type AssignmentMode = 'auto' | 'direct';
@@ -114,7 +115,11 @@ export async function getTodayMissions(
     .select('*')
     .eq('house_id', houseId)
     .eq('assigned_to', memberId)
-    .eq('status', 'assigned')
+    // Done is included so a completed chore stays on the list, struck through,
+    // for the rest of the day. Filtering it out meant finishing everything left
+    // an empty screen and no sense that anything had been achieved -- and the
+    // row vanishing on the next refresh contradicted the completion animation.
+    .in('status', ['assigned', 'done'])
     // Without this the "Today" screen listed every assigned mission ever,
     // growing without bound and duplicating the calendar.
     .eq('due_date', day);
@@ -158,22 +163,22 @@ export async function getSuggestions(houseId: string): Promise<Mission[]> {
 }
 
 export async function getMyMembership(houseId: string): Promise<{ id: string; role: 'admin' | 'member' } | null> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return null;
-  }
-  const { data, error } = await supabase
-    .from('members')
-    .select('id, role')
-    .eq('house_id', houseId)
-    .eq('user_id', user.id)
-    .maybeSingle();
-  if (error) {
-    throw new Error(error.message);
-  }
-  return data;
+  return getCachedMembership(houseId, async () => {
+    const userId = await getCurrentUserId();
+    if (!userId) {
+      return null;
+    }
+    const { data, error } = await supabase
+      .from('members')
+      .select('id, role')
+      .eq('house_id', houseId)
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (error) {
+      throw new Error(error.message);
+    }
+    return data;
+  });
 }
 
 export async function getHouseMembers(
@@ -187,15 +192,15 @@ export async function getHouseMembers(
 }
 
 export async function getMyHouseId(): Promise<string | null> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return null;
-  }
-  const { data, error } = await supabase.from('members').select('house_id').eq('user_id', user.id).maybeSingle();
-  if (error) {
-    throw new Error(error.message);
-  }
-  return data?.house_id ?? null;
+  return getCachedHouseId(async () => {
+    const userId = await getCurrentUserId();
+    if (!userId) {
+      return null;
+    }
+    const { data, error } = await supabase.from('members').select('house_id').eq('user_id', userId).maybeSingle();
+    if (error) {
+      throw new Error(error.message);
+    }
+    return data?.house_id ?? null;
+  });
 }

@@ -1,9 +1,10 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { AnimatedPressable } from './AnimatedPressable';
-import { colors, spacing, radii, sectionColors, ICONS, tint } from '../theme';
+import { colors, spacing, radii, type, sectionColors, ICONS, tint } from '../theme';
 
 export type TabKey = 'today' | 'calendar' | 'balance' | 'inbox' | 'more';
 
@@ -30,41 +31,29 @@ interface TabBarProps {
 export function TabBar({ active, houseId, inboxCount = 0, isAdmin = false, onMore }: TabBarProps) {
   const { t } = useTranslation();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+
+  // navigate, not push: it unwinds to a route already on the stack instead of
+  // stacking a second copy, so Today -> Calendar -> Today leaves one of each
+  // rather than three screens deep. push made the back gesture replay the whole
+  // tour of everywhere you had been.
+  const go = (pathname: '/today' | '/calendar' | '/balance' | '/missions/suggestions') => () =>
+    router.navigate({ pathname, params: { houseId } });
 
   const tabs: { key: TabKey; icon: keyof typeof ICONS; label: string; go: () => void }[] = [
-    {
-      key: 'today',
-      icon: 'today',
-      label: t('tabs.today'),
-      go: () => router.replace({ pathname: '/today', params: { houseId } }),
-    },
-    {
-      key: 'calendar',
-      icon: 'calendar',
-      label: t('tabs.calendar'),
-      go: () => router.push({ pathname: '/calendar', params: { houseId } }),
-    },
-    {
-      key: 'balance',
-      icon: 'balance',
-      label: t('tabs.balance'),
-      go: () => router.push({ pathname: '/balance', params: { houseId } }),
-    },
+    { key: 'today', icon: 'today', label: t('tabs.today'), go: go('/today') },
+    { key: 'calendar', icon: 'calendar', label: t('tabs.calendar'), go: go('/calendar') },
+    { key: 'balance', icon: 'balance', label: t('tabs.balance'), go: go('/balance') },
   ];
 
   if (isAdmin) {
-    tabs.push({
-      key: 'inbox',
-      icon: 'inbox',
-      label: t('tabs.inbox'),
-      go: () => router.push({ pathname: '/missions/suggestions', params: { houseId } }),
-    });
+    tabs.push({ key: 'inbox', icon: 'inbox', label: t('tabs.inbox'), go: go('/missions/suggestions') });
   }
 
   tabs.push({ key: 'more', icon: 'more', label: t('tabs.more'), go: () => onMore?.() });
 
   return (
-    <View style={styles.bar}>
+    <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, spacing.sm) }]}>
       {tabs.map((tab) => {
         const isActive = tab.key === active;
         const hue = tab.key === 'more' ? colors.textMuted : sectionColors[tab.key as keyof typeof sectionColors];
@@ -76,10 +65,11 @@ export function TabBar({ active, houseId, inboxCount = 0, isAdmin = false, onMor
             onPress={tab.go}
             testID={`tab-${tab.key}`}
             accessibilityLabel={tab.label}
-            style={[styles.tab, isActive && { backgroundColor: tint(hue, '1A') }]}
+            accessibilityState={{ selected: isActive }}
+            style={styles.tab}
           >
-            <View>
-              <Ionicons name={ICONS[tab.icon]} size={20} color={color} />
+            <View style={[styles.iconPill, isActive && { backgroundColor: tint(hue, '1F') }]}>
+              <Ionicons name={ICONS[tab.icon]} size={22} color={color} />
               {tab.key === 'inbox' && inboxCount > 0 && (
                 <View style={styles.badge} testID="tab-inbox-badge">
                   <Text style={styles.badgeText}>{inboxCount > 9 ? '9+' : inboxCount}</Text>
@@ -103,8 +93,7 @@ const styles = StyleSheet.create({
     borderTopColor: colors.border,
     backgroundColor: colors.surface,
     paddingTop: spacing.sm,
-    paddingBottom: spacing.sm,
-    gap: spacing.xs,
+    paddingHorizontal: spacing.xs,
   },
   tab: {
     flex: 1,
@@ -113,27 +102,39 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
     borderRadius: radii.md,
   },
+  // The pill, not the whole column, carries the active wash: a 4pt-tall strip of
+  // colour behind the label read as a highlight bug at a glance.
+  iconPill: {
+    minWidth: 56,
+    height: 30,
+    borderRadius: radii.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   label: {
-    fontSize: 10,
+    ...type.caption,
   },
   labelActive: {
     fontWeight: '800',
   },
   badge: {
     position: 'absolute',
-    top: -5,
-    end: -8,
-    minWidth: 15,
-    height: 15,
-    borderRadius: 8,
+    top: -2,
+    end: 8,
+    minWidth: 17,
+    height: 17,
+    borderRadius: 9,
     backgroundColor: colors.rose,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 3,
+    paddingHorizontal: 4,
   },
   badgeText: {
     color: colors.surface,
-    fontSize: 9,
+    // The one place below the type scale's 13pt floor: this is a two-character
+    // count inside a 17pt disc, not text anyone reads as a sentence.
+    fontSize: 10,
+    lineHeight: 13,
     fontWeight: '800',
   },
 });

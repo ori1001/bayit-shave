@@ -2,7 +2,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { AnimatedPressable } from './AnimatedPressable';
-import { colors, spacing, radii } from '../theme';
+import { colors, spacing, radii, type, tint } from '../theme';
 
 interface LoadErrorViewProps {
   message?: string | null;
@@ -19,10 +19,12 @@ export function LoadErrorView({ message, onRetry, testID = 'load-error' }: LoadE
 
   return (
     <View style={styles.screen} testID={testID}>
-      <Ionicons name="cloud-offline-outline" size={40} color={colors.textMuted} />
+      <View style={styles.disc}>
+        <Ionicons name="cloud-offline-outline" size={40} color={colors.rose} />
+      </View>
       <Text style={styles.message}>{message || t('common.loadError')}</Text>
       <AnimatedPressable onPress={onRetry} testID={`${testID}-retry`} style={styles.retryButton}>
-        <Ionicons name="refresh" size={18} color={colors.cream} />
+        <Ionicons name="refresh" size={20} color={colors.cream} />
         <Text style={styles.retryText}>{t('common.retry')}</Text>
       </AnimatedPressable>
     </View>
@@ -38,9 +40,20 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     backgroundColor: colors.background,
   },
+  disc: {
+    width: 88,
+    height: 88,
+    borderRadius: radii.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: tint(colors.rose, '14'),
+    marginBottom: spacing.sm,
+  },
   message: {
+    ...type.body,
     textAlign: 'center',
     color: colors.textMuted,
+    maxWidth: 320,
   },
   retryButton: {
     flexDirection: 'row',
@@ -49,11 +62,11 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     backgroundColor: colors.ink,
     borderRadius: radii.lg,
-    paddingVertical: spacing.md,
+    minHeight: 52,
     paddingHorizontal: spacing.xl,
   },
   retryText: {
+    ...type.bodyStrong,
     color: colors.cream,
-    fontWeight: '700',
   },
 });

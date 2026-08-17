@@ -1,13 +1,21 @@
 import { useEffect, useState } from 'react';
-import { View, Text, TextInput, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, TextInput, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { suggestMission, getHouseMembers, type MissionCategory, type AssignmentMode } from '../../features/missions/api';
+import {
+  suggestMission,
+  getHouseMembers,
+  getMyMembership,
+  type MissionCategory,
+  type AssignmentMode,
+} from '../../features/missions/api';
 import { AnimatedPressable } from '../../components/AnimatedPressable';
+import { Avatar } from '../../components/Avatar';
 import { CategoryIcon } from '../../components/CategoryIcon';
 import { DateField } from '../../components/DatePicker';
-import { colors, spacing, radii, MISSION_CATEGORIES } from '../../theme';
+import { Screen } from '../../components/Screen';
+import { colors, spacing, radii, type, sectionColors, ICONS, MISSION_CATEGORIES, CATEGORY_META, tint } from '../../theme';
 
 export default function SuggestMissionScreen() {
   const { t } = useTranslation();
@@ -22,17 +30,26 @@ export default function SuggestMissionScreen() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [members, setMembers] = useState<{ id: string; name: string; role: 'admin' | 'member' }[]>([]);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (houseId) {
-      getHouseMembers(houseId)
-        .then(setMembers)
-        .catch(() => {
-          // no-op: if the member list fails to load, direct-assign just stays unavailable
-        });
+    if (!houseId) {
+      return;
     }
+    getHouseMembers(houseId)
+      .then(setMembers)
+      .catch(() => {
+        // no-op: if the member list fails to load, direct-assign just stays unavailable
+      });
+    // Only decides whether the inbox tab is shown; the membership is cached for
+    // the session, so this costs nothing after the first screen.
+    getMyMembership(houseId)
+      .then((membership) => setIsAdmin(membership?.role === 'admin'))
+      .catch(() => {});
   }, [houseId]);
+
+  const canSubmit = !submitting && !!title && !!points && !!dueDate && (assignmentMode !== 'direct' || !!selectedMemberId);
 
   async function handleSubmit() {
     setError(null);
@@ -56,52 +73,77 @@ export default function SuggestMissionScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.screen}>
-      <Text style={styles.title}>{t('missions.suggestTitle')}</Text>
-
+    <Screen
+      section="today"
+      title={t('missions.suggestTitle')}
+      icon={ICONS.add}
+      tab="today"
+      houseId={houseId}
+      isAdmin={isAdmin}
+      scroll
+    >
       <Text style={styles.label}>{t('missions.categoryLabel')}</Text>
       <View style={styles.chipRow}>
-        {MISSION_CATEGORIES.map((cat) => (
-          <AnimatedPressable
-            key={cat}
-            onPress={() => setCategory(cat)}
-            testID={`category-${cat}`}
-            style={[styles.categoryChip, category === cat && styles.categoryChipActive]}
-          >
-            <CategoryIcon category={cat} size={16} />
-            <Text style={[styles.categoryChipText, category === cat && styles.categoryChipTextActive]}>{t(`missions.categories.${cat}`)}</Text>
-          </AnimatedPressable>
-        ))}
+        {MISSION_CATEGORIES.map((cat) => {
+          const meta = CATEGORY_META[cat];
+          const active = category === cat;
+          return (
+            <AnimatedPressable
+              key={cat}
+              onPress={() => setCategory(cat)}
+              testID={`category-${cat}`}
+              accessibilityState={{ selected: active }}
+              // The category's own colour marks the selection instead of a flat
+              // ink fill, so the palette that identifies chores everywhere else
+              // in the app is the same thing you pick from here.
+              style={[
+                styles.categoryChip,
+                { borderColor: active ? meta.color : colors.border },
+                active && { backgroundColor: tint(meta.color, '1F') },
+              ]}
+            >
+              <CategoryIcon category={cat} size={18} />
+              <Text style={[styles.categoryChipText, active && { color: meta.color, fontWeight: '800' }]}>
+                {t(`missions.categories.${cat}`)}
+              </Text>
+            </AnimatedPressable>
+          );
+        })}
       </View>
 
       <Text style={styles.label}>{t('missions.titleLabel')}</Text>
       <TextInput value={title} onChangeText={setTitle} testID="mission-title-input" style={styles.input} />
 
       <Text style={styles.label}>{t('missions.pointsLabel')}</Text>
-      <TextInput value={points} onChangeText={setPoints} keyboardType="numeric" testID="mission-points-input" style={styles.input} />
-
-      <Text style={styles.label}>{t('missions.dueDateLabel')}</Text>
-      <DateField
-        value={dueDate}
-        onChange={setDueDate}
-        label={t('missions.dueDateLabel')}
-        testID="mission-due-date-input"
+      <TextInput
+        value={points}
+        onChangeText={setPoints}
+        keyboardType="numeric"
+        testID="mission-points-input"
+        style={styles.input}
       />
 
-      <View style={styles.toggleRow}>
+      <Text style={styles.label}>{t('missions.dueDateLabel')}</Text>
+      <DateField value={dueDate} onChange={setDueDate} label={t('missions.dueDateLabel')} testID="mission-due-date-input" />
+
+      <View style={styles.segment}>
         <AnimatedPressable
           onPress={() => setAssignmentMode('auto')}
           testID="assignment-pool"
-          style={[styles.toggleOption, assignmentMode === 'auto' && styles.toggleOptionActive]}
+          style={[styles.segmentOption, assignmentMode === 'auto' && styles.segmentOptionActive]}
         >
-          <Text style={[styles.toggleOptionText, assignmentMode === 'auto' && styles.toggleOptionTextActive]}>{t('missions.assignmentPool')}</Text>
+          <Text style={[styles.segmentText, assignmentMode === 'auto' && styles.segmentTextActive]}>
+            {t('missions.assignmentPool')}
+          </Text>
         </AnimatedPressable>
         <AnimatedPressable
           onPress={() => setAssignmentMode('direct')}
           testID="assignment-direct"
-          style={[styles.toggleOption, assignmentMode === 'direct' && styles.toggleOptionActive]}
+          style={[styles.segmentOption, assignmentMode === 'direct' && styles.segmentOptionActive]}
         >
-          <Text style={[styles.toggleOptionText, assignmentMode === 'direct' && styles.toggleOptionTextActive]}>{t('missions.assignmentDirect')}</Text>
+          <Text style={[styles.segmentText, assignmentMode === 'direct' && styles.segmentTextActive]}>
+            {t('missions.assignmentDirect')}
+          </Text>
         </AnimatedPressable>
       </View>
 
@@ -109,16 +151,21 @@ export default function SuggestMissionScreen() {
         <View style={{ gap: spacing.sm }}>
           <Text style={styles.label}>{t('missions.selectMember')}</Text>
           <View style={styles.chipRow}>
-            {members.map((m) => (
-              <AnimatedPressable
-                key={m.id}
-                onPress={() => setSelectedMemberId(m.id)}
-                testID={`member-${m.id}`}
-                style={[styles.memberChip, selectedMemberId === m.id && styles.memberChipActive]}
-              >
-                <Text style={[styles.memberChipText, selectedMemberId === m.id && styles.memberChipTextActive]}>{m.name}</Text>
-              </AnimatedPressable>
-            ))}
+            {members.map((m) => {
+              const active = selectedMemberId === m.id;
+              return (
+                <AnimatedPressable
+                  key={m.id}
+                  onPress={() => setSelectedMemberId(m.id)}
+                  testID={`member-${m.id}`}
+                  accessibilityState={{ selected: active }}
+                  style={[styles.memberChip, active && styles.memberChipActive]}
+                >
+                  <Avatar memberId={m.id} name={m.name} size={22} />
+                  <Text style={[styles.memberChipText, active && styles.memberChipTextActive]}>{m.name}</Text>
+                </AnimatedPressable>
+              );
+            })}
           </View>
         </View>
       )}
@@ -131,29 +178,20 @@ export default function SuggestMissionScreen() {
 
       <AnimatedPressable
         onPress={handleSubmit}
-        disabled={submitting || !title || !points || !dueDate || (assignmentMode === 'direct' && !selectedMemberId)}
+        disabled={!canSubmit}
         testID="suggest-mission-submit"
-        style={styles.submitButton}
+        style={[styles.submitButton, !canSubmit && styles.buttonDisabled]}
       >
-        <Ionicons name="add-circle-outline" size={18} color={colors.ink} />
+        <Ionicons name={ICONS.add} size={20} color={colors.ink} />
         <Text style={styles.submitButtonText}>{t('missions.submit')}</Text>
       </AnimatedPressable>
-    </ScrollView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    padding: spacing.xl,
-    gap: spacing.md,
-    backgroundColor: colors.background,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: colors.ink,
-  },
   label: {
+    ...type.label,
     color: colors.textMuted,
   },
   chipRow: {
@@ -165,72 +203,76 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
-    borderRadius: radii.md,
+    minHeight: 44,
+    borderRadius: radii.pill,
     borderWidth: 1.5,
-    borderColor: colors.border,
     backgroundColor: colors.surface,
   },
-  categoryChipActive: {
-    borderColor: colors.ink,
-    backgroundColor: colors.ink,
-  },
   categoryChipText: {
+    ...type.caption,
+    fontWeight: '700',
     color: colors.ink,
-  },
-  categoryChipTextActive: {
-    color: colors.cream,
   },
   input: {
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radii.md,
-    padding: spacing.md,
+    paddingHorizontal: spacing.md,
+    minHeight: 52,
     backgroundColor: colors.surface,
+    ...type.body,
     color: colors.ink,
   },
-  toggleRow: {
+  segment: {
     flexDirection: 'row',
-    gap: spacing.sm,
+    backgroundColor: colors.border,
+    borderRadius: radii.pill,
+    padding: 3,
   },
-  toggleOption: {
+  segmentOption: {
     flex: 1,
-    padding: spacing.sm,
-    borderRadius: radii.md,
+    minHeight: 42,
     alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: colors.ink,
-    backgroundColor: 'transparent',
+    justifyContent: 'center',
+    borderRadius: radii.pill,
   },
-  toggleOptionActive: {
-    backgroundColor: colors.ink,
+  segmentOptionActive: {
+    backgroundColor: colors.surface,
   },
-  toggleOptionText: {
+  segmentText: {
+    ...type.label,
+    color: colors.textMuted,
+  },
+  segmentTextActive: {
     color: colors.ink,
-  },
-  toggleOptionTextActive: {
-    color: colors.cream,
+    fontWeight: '800',
   },
   memberChip: {
-    paddingVertical: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
     paddingHorizontal: spacing.md,
-    borderRadius: radii.md,
+    minHeight: 44,
+    borderRadius: radii.pill,
     borderWidth: 1.5,
     borderColor: colors.border,
     backgroundColor: colors.surface,
   },
   memberChipActive: {
     borderColor: colors.ink,
-    backgroundColor: colors.ink,
+    backgroundColor: tint(colors.ink, '12'),
   },
   memberChipText: {
+    ...type.caption,
+    fontWeight: '700',
     color: colors.ink,
   },
   memberChipTextActive: {
-    color: colors.cream,
+    fontWeight: '800',
   },
   errorText: {
+    ...type.body,
     color: colors.rose,
   },
   submitButton: {
@@ -238,12 +280,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: colors.amber,
+    backgroundColor: sectionColors.today,
     borderRadius: radii.lg,
-    padding: spacing.md,
+    minHeight: 52,
+    marginTop: spacing.sm,
   },
   submitButtonText: {
-    color: colors.ink,
+    ...type.bodyStrong,
     fontWeight: '800',
+    color: colors.ink,
+  },
+  buttonDisabled: {
+    opacity: 0.5,
   },
 });

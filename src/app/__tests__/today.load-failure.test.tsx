@@ -7,6 +7,7 @@ jest.mock('../../features/missions/api', () => ({
   getHouseMembers: jest.fn(),
   completeMission: jest.fn(),
   editMissionPoints: jest.fn(),
+  localDateString: jest.fn(() => '2026-08-17'),
 }));
 
 jest.mock('../../features/requests/api', () => ({

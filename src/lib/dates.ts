@@ -54,3 +54,37 @@ export function addMonths(year: number, month: number, delta: number): { year: n
   const zero = year * 12 + (month - 1) + delta;
   return { year: Math.floor(zero / 12), month: (zero % 12) + 1 };
 }
+
+/**
+ * How many empty cells precede the 1st, given which weekday the grid starts on.
+ *
+ * Without this the month is laid out as a plain wrap of 31 boxes, so the 1st
+ * always lands in the first column and no column corresponds to a weekday --
+ * which is the one thing a month grid exists to show.
+ */
+export function leadingBlanks(year: number, month: number, weekStart = 0): number {
+  return (firstWeekdayOfMonth(year, month) - weekStart + 7) % 7;
+}
+
+/** Weekday indices (0 = Sunday) in display order for a grid starting at `weekStart`. */
+export function weekdayOrder(weekStart = 0): number[] {
+  return Array.from({ length: 7 }, (_, i) => (weekStart + i) % 7);
+}
+
+/**
+ * Cells for a whole month, padded at both ends so the grid is complete weeks.
+ * Trailing padding matters: without it the last row is short and the grid's
+ * bottom edge steps, which reads as a rendering fault rather than a month end.
+ */
+export function monthCells(year: number, month: number, weekStart = 0): (number | null)[] {
+  const lead = leadingBlanks(year, month, weekStart);
+  const total = daysInMonth(year, month);
+  const cells: (number | null)[] = [
+    ...Array<null>(lead).fill(null),
+    ...Array.from({ length: total }, (_, i) => i + 1),
+  ];
+  while (cells.length % 7 !== 0) {
+    cells.push(null);
+  }
+  return cells;
+}

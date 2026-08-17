@@ -1,23 +1,84 @@
 import { I18nManager } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Localization from 'expo-localization';
-import { resolveInitialLanguage, applyRTLForLanguage } from '../language';
+import {
+  inferDeviceLanguage,
+  resolveInitialLanguage,
+  applyRTLForLanguage,
+  readStoredLanguage,
+  storeLanguage,
+  isSupportedLanguage,
+  LANGUAGE_STORAGE_KEY,
+} from '../language';
 
 jest.mock('expo-localization', () => ({ getLocales: jest.fn() }));
 
-describe('resolveInitialLanguage', () => {
-  it('defaults to Hebrew when the device locale is not English', () => {
-    (Localization.getLocales as jest.Mock).mockReturnValue([{ languageCode: 'fr' }]);
-    expect(resolveInitialLanguage()).toBe('he');
+const mockLocales = (locales: unknown[]) => (Localization.getLocales as jest.Mock).mockReturnValue(locales);
+
+describe('inferDeviceLanguage', () => {
+  it('picks Hebrew when the device region is Israel, even on an English phone', () => {
+    mockLocales([{ languageCode: 'en', regionCode: 'IL' }]);
+    expect(inferDeviceLanguage()).toBe('he');
   });
 
-  it('picks English when the device locale is English', () => {
-    (Localization.getLocales as jest.Mock).mockReturnValue([{ languageCode: 'en' }]);
-    expect(resolveInitialLanguage()).toBe('en');
+  it('picks Hebrew when the device language is Hebrew, wherever the phone is', () => {
+    mockLocales([{ languageCode: 'he', regionCode: 'US' }]);
+    expect(inferDeviceLanguage()).toBe('he');
   });
 
-  it('defaults to Hebrew when locale detection returns nothing', () => {
-    (Localization.getLocales as jest.Mock).mockReturnValue([]);
-    expect(resolveInitialLanguage()).toBe('he');
+  it('accepts the legacy "iw" code for Hebrew', () => {
+    mockLocales([{ languageCode: 'iw', regionCode: 'US' }]);
+    expect(inferDeviceLanguage()).toBe('he');
+  });
+
+  it('picks English for a region and language with no Hebrew signal', () => {
+    mockLocales([{ languageCode: 'fr', regionCode: 'FR' }]);
+    expect(inferDeviceLanguage()).toBe('en');
+  });
+
+  it('picks English for an English phone outside Israel', () => {
+    mockLocales([{ languageCode: 'en', regionCode: 'US' }]);
+    expect(inferDeviceLanguage()).toBe('en');
+  });
+
+  it('falls back to Hebrew when the device reports no locale at all', () => {
+    mockLocales([]);
+    expect(inferDeviceLanguage()).toBe('he');
+  });
+
+  it('is what the synchronous bootstrap resolves to', () => {
+    mockLocales([{ languageCode: 'en', regionCode: 'IL' }]);
+    expect(resolveInitialLanguage()).toBe(inferDeviceLanguage());
+  });
+});
+
+describe('stored language', () => {
+  beforeEach(async () => {
+    await AsyncStorage.clear();
+  });
+
+  it('is null before the user has ever chosen', async () => {
+    await expect(readStoredLanguage()).resolves.toBeNull();
+  });
+
+  it('round-trips a chosen language', async () => {
+    await storeLanguage('en');
+    await expect(readStoredLanguage()).resolves.toBe('en');
+    await expect(AsyncStorage.getItem(LANGUAGE_STORAGE_KEY)).resolves.toBe('en');
+  });
+
+  it('ignores a stored value that is not a language the app ships', async () => {
+    await AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, 'klingon');
+    await expect(readStoredLanguage()).resolves.toBeNull();
+  });
+});
+
+describe('isSupportedLanguage', () => {
+  it('accepts the shipped languages and nothing else', () => {
+    expect(isSupportedLanguage('he')).toBe(true);
+    expect(isSupportedLanguage('en')).toBe(true);
+    expect(isSupportedLanguage('fr')).toBe(false);
+    expect(isSupportedLanguage(null)).toBe(false);
   });
 });
 

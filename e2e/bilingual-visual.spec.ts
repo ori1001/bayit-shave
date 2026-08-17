@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { gotoSignIn } from './support/app';
 
 /**
  * Captures the app in both languages.
@@ -25,7 +26,7 @@ for (const lang of ['en', 'he'] as const) {
     const page = await context.newPage();
     await setLanguage(page, lang);
 
-    await page.goto('http://localhost:8081/');
+    await gotoSignIn(page);
     await expect(page.getByTestId('auth-email-input')).toBeVisible({ timeout: 60_000 });
     await page.waitForTimeout(1500);
 

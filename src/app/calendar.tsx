@@ -1,17 +1,22 @@
-import { useEffect, useMemo, useState } from 'react';
-import { View, Text, TextInput, ScrollView, StyleSheet } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { getMonthMissions, getHouseMembers, getMyMembership, editMissionSchedule, type Mission } from '../features/missions/api';
+import { editMissionSchedule, type Mission } from '../features/missions/api';
+import { fetchCalendar, calendarKey } from '../features/tabs-data';
+import { useScreenData } from '../lib/screen-data';
 import { AnimatedPressable } from '../components/AnimatedPressable';
 import { Card } from '../components/Card';
 import { CategoryIcon } from '../components/CategoryIcon';
-import { LoadErrorView } from '../components/LoadErrorView';
-import { LoadingScreen, FadeIn } from '../components/Motion';
+import { EmptyState } from '../components/EmptyState';
+import { Screen } from '../components/Screen';
+import { MonthGrid, localeOf } from '../components/MonthGrid';
+import { FadeIn } from '../components/Motion';
 import { syncMissionsToDeviceCalendar } from '../features/calendar-sync/api';
 import { DateField } from '../components/DatePicker';
-import { colors, spacing, radii, CATEGORY_META, sectionColors, ICONS, chevronNext, chevronPrev } from '../theme';
+import { addMonths } from '../lib/dates';
+import { colors, spacing, radii, type, CATEGORY_META, sectionColors, ICONS } from '../theme';
 
 export default function CalendarScreen() {
   const { t, i18n } = useTranslation();
@@ -20,41 +25,27 @@ export default function CalendarScreen() {
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth() + 1);
-  const [missions, setMissions] = useState<Mission[]>([]);
-  const [members, setMembers] = useState<{ id: string; name: string; role: 'admin' | 'member' }[]>([]);
-  const [myMemberId, setMyMemberId] = useState<string | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [mineOnly, setMineOnly] = useState(false);
-  const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const [selectedDay, setSelectedDay] = useState<number | null>(today.getDate());
   const [editingMissionId, setEditingMissionId] = useState<string | null>(null);
   const [newDateValue, setNewDateValue] = useState('');
   const [scheduleError, setScheduleError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
 
-  async function load() {
-    setLoadError(null);
-    setLoading(true);
-    try {
-      const membership = await getMyMembership(houseId);
-      setMyMemberId(membership?.id ?? null);
-      setIsAdmin(membership?.role === 'admin');
-      const [monthMissions, houseMembers] = await Promise.all([getMonthMissions(houseId, year, month), getHouseMembers(houseId)]);
-      setMissions(monthMissions);
-      setMembers(houseMembers);
-    } catch (e) {
-      setLoadError(e instanceof Error ? e.message : null);
-    } finally {
-      setLoading(false);
-    }
-  }
+  const fetchMonth = useCallback(() => fetchCalendar(houseId, year, month), [houseId, year, month]);
 
-  useEffect(() => {
-    load();
-  }, [houseId, year, month]);
+  // Keyed by month, so paging back to a month already opened is instant too.
+  const { data, fromCache, loading, error, refresh } = useScreenData(calendarKey(houseId, year, month), fetchMonth);
 
-  const visibleMissions = useMemo(() => (mineOnly ? missions.filter((m) => m.assigned_to === myMemberId) : missions), [missions, mineOnly, myMemberId]);
+  const missions = useMemo(() => data?.missions ?? [], [data]);
+  const members = useMemo(() => data?.members ?? [], [data]);
+  const myMemberId = data?.myMemberId ?? null;
+  const isAdmin = data?.isAdmin;
+
+  const visibleMissions = useMemo(
+    () => (mineOnly ? missions.filter((m) => m.assigned_to === myMemberId) : missions),
+    [missions, mineOnly, myMemberId]
+  );
 
   const missionsByDay = useMemo(() => {
     const map = new Map<number, Mission[]>();
@@ -67,26 +58,10 @@ export default function CalendarScreen() {
     return map;
   }, [visibleMissions]);
 
-  const daysInMonth = new Date(year, month, 0).getDate();
-  const dayNumbers = Array.from({ length: daysInMonth }, (_, i) => i + 1);
-
-  function handlePrevMonth() {
-    if (month === 1) {
-      setYear(year - 1);
-      setMonth(12);
-    } else {
-      setMonth(month - 1);
-    }
-    setSelectedDay(null);
-  }
-
-  function handleNextMonth() {
-    if (month === 12) {
-      setYear(year + 1);
-      setMonth(1);
-    } else {
-      setMonth(month + 1);
-    }
+  function handleMonth(delta: number) {
+    const next = addMonths(year, month, delta);
+    setYear(next.year);
+    setMonth(next.month);
     setSelectedDay(null);
   }
 
@@ -101,7 +76,7 @@ export default function CalendarScreen() {
     try {
       await editMissionSchedule(missionId, newDateValue);
       setEditingMissionId(null);
-      await load();
+      await refresh();
     } catch (e) {
       setScheduleError(e instanceof Error ? e.message : t('calendar.saveError'));
     }
@@ -114,9 +89,7 @@ export default function CalendarScreen() {
       // null means device calendars are unavailable here (web, or declined),
       // which is a state to explain rather than an error to throw.
       setSyncMessage(
-        result === null
-          ? t('calendar.syncUnavailable')
-          : t('calendar.synced', { count: result.created + result.updated })
+        result === null ? t('calendar.syncUnavailable') : t('calendar.synced', { count: result.created + result.updated })
       );
     } catch (e) {
       setSyncMessage(e instanceof Error ? e.message : t('calendar.saveError'));
@@ -130,294 +103,285 @@ export default function CalendarScreen() {
       // lands as a proposal for the inbox.
       await editMissionSchedule(missionId, null, memberId);
       setEditingMissionId(null);
-      await load();
+      await refresh();
     } catch (e) {
       setScheduleError(e instanceof Error ? e.message : t('calendar.saveError'));
     }
   }
 
-  if (loading) {
-    return <LoadingScreen />;
-  }
-
-  if (loadError !== null) {
-    return <LoadErrorView message={loadError} onRetry={load} testID="calendar-load-error" />;
-  }
-
   const selectedMissions = selectedDay !== null ? (missionsByDay.get(selectedDay) ?? []) : [];
+  const selectedLabel =
+    selectedDay !== null
+      ? new Date(year, month - 1, selectedDay).toLocaleDateString(localeOf(i18n.language), {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long',
+        })
+      : '';
 
   return (
-    <View style={styles.screen}>
-      <View style={styles.titleRow}>
-        <Ionicons name={ICONS.calendar} size={22} color={sectionColors.calendar} />
-        <Text style={styles.title}>{t('calendar.title')}</Text>
-      </View>
-
-      <View style={styles.monthNav}>
-        <AnimatedPressable onPress={handlePrevMonth} testID="calendar-prev-month" style={styles.monthNavButton} accessibilityLabel={t('calendar.previousMonth')}>
-          <Ionicons name={chevronPrev()} size={20} color={sectionColors.calendar} />
+    <Screen
+      section="calendar"
+      title={t('calendar.title')}
+      icon={ICONS.calendar}
+      tab="calendar"
+      houseId={houseId}
+      isAdmin={isAdmin}
+      loading={loading}
+      error={error}
+      onRetry={refresh}
+      errorTestID="calendar-load-error"
+      headerRight={
+        <AnimatedPressable
+          onPress={handleSyncToDevice}
+          testID="calendar-sync-device"
+          style={styles.headerAction}
+          accessibilityLabel={t('calendar.syncToDevice')}
+        >
+          <Ionicons name="calendar-outline" size={22} color={sectionColors.calendar} />
         </AnimatedPressable>
-        <Text style={styles.monthLabel}>
-          {new Date(year, month - 1, 1).toLocaleDateString(i18n.language === 'he' ? 'he-IL' : 'en-US', {
-            month: 'long',
-            year: 'numeric',
-          })}
-        </Text>
-        <AnimatedPressable onPress={handleNextMonth} testID="calendar-next-month" style={styles.monthNavButton} accessibilityLabel={t('calendar.nextMonth')}>
-          <Ionicons name={chevronNext()} size={20} color={sectionColors.calendar} />
-        </AnimatedPressable>
-      </View>
-
-      <AnimatedPressable onPress={handleSyncToDevice} testID="calendar-sync-device" style={styles.syncButton}>
-        <Ionicons name="calendar-outline" size={16} color={colors.ink} />
-        <Text style={styles.syncButtonText}>{t('calendar.syncToDevice')}</Text>
-      </AnimatedPressable>
+      }
+    >
       {syncMessage && (
         <Text testID="calendar-sync-message" style={styles.syncMessage}>
           {syncMessage}
         </Text>
       )}
 
-      <View style={styles.toggleRow}>
-        <AnimatedPressable onPress={() => setMineOnly(false)} testID="calendar-everyone" style={[styles.toggleOption, !mineOnly && styles.toggleOptionActive]}>
-          <Text style={[styles.toggleOptionText, !mineOnly && styles.toggleOptionTextActive]}>{t('calendar.everyone')}</Text>
+      {/* Segmented control rather than two outlined buttons: one continuous
+          track with a sliding-looking selection reads as a filter, whereas two
+          bordered pills read as two separate actions. */}
+      <View style={styles.segment}>
+        <AnimatedPressable
+          onPress={() => setMineOnly(false)}
+          testID="calendar-everyone"
+          style={[styles.segmentOption, !mineOnly && styles.segmentOptionActive]}
+        >
+          <Text style={[styles.segmentText, !mineOnly && styles.segmentTextActive]}>{t('calendar.everyone')}</Text>
         </AnimatedPressable>
-        <AnimatedPressable onPress={() => setMineOnly(true)} testID="calendar-mine" style={[styles.toggleOption, mineOnly && styles.toggleOptionActive]}>
-          <Text style={[styles.toggleOptionText, mineOnly && styles.toggleOptionTextActive]}>{t('calendar.mine')}</Text>
+        <AnimatedPressable
+          onPress={() => setMineOnly(true)}
+          testID="calendar-mine"
+          style={[styles.segmentOption, mineOnly && styles.segmentOptionActive]}
+        >
+          <Text style={[styles.segmentText, mineOnly && styles.segmentTextActive]}>{t('calendar.mine')}</Text>
         </AnimatedPressable>
       </View>
 
-      <View style={styles.grid}>
-        {dayNumbers.map((day) => {
-          const dayMissions = missionsByDay.get(day) ?? [];
-          return (
-            <AnimatedPressable key={day} onPress={() => setSelectedDay(day)} testID={`calendar-day-${day}`} style={[styles.dayCell, selectedDay === day && styles.dayCellSelected]}>
-              <Text style={styles.dayNumber}>{day}</Text>
-              <View style={styles.dotRow}>
-                {dayMissions.slice(0, 3).map((m, i) => (
-                  <View key={i} style={[styles.dot, { backgroundColor: (CATEGORY_META[m.category] ?? CATEGORY_META.other).color }]} />
-                ))}
-              </View>
-              {/* Without this a 7-mission day looked identical to a 3-mission one. */}
-              {dayMissions.length > 3 && (
-                <Text testID={`calendar-day-${day}-overflow`} style={styles.overflowText}>
-                  {t('calendar.moreMissions', { count: dayMissions.length - 3 })}
-                </Text>
-              )}
-            </AnimatedPressable>
-          );
-        })}
-      </View>
-
-      {selectedDay !== null && (
-        <ScrollView style={styles.dayDetail} contentContainerStyle={{ gap: spacing.sm }}>
-          {selectedMissions.length === 0 && <Text style={styles.emptyText}>{t('calendar.noMissionsThisDay')}</Text>}
-          {selectedMissions.map((mission) => {
-            const canEdit = isAdmin || mission.assigned_to === myMemberId;
-            const assigneeName = members.find((m) => m.id === mission.assigned_to)?.name ?? '';
+      <Card style={styles.gridCard}>
+        <MonthGrid
+          year={year}
+          month={month}
+          onMonth={handleMonth}
+          onPick={(date) => setSelectedDay(date.getDate())}
+          selected={selectedDay !== null ? new Date(year, month - 1, selectedDay) : null}
+          testID="calendar"
+          renderDay={(_, day) => {
+            const dayMissions = missionsByDay.get(day) ?? [];
+            if (dayMissions.length === 0) {
+              // A fixed-height spacer, so a day with chores and a day without
+              // keep their numbers on the same baseline.
+              return <View style={styles.dotRow} />;
+            }
             return (
-              <Card key={mission.id} testID={`calendar-mission-${mission.id}`} style={styles.missionCard}>
-                <View style={styles.missionCardHeader}>
-                  <CategoryIcon category={mission.category} size={18} />
-                  <Text style={styles.missionCardTitle}>{mission.title}</Text>
-                  <Text style={styles.missionCardPoints}>{mission.points}</Text>
-                </View>
-                <Text style={styles.assigneeText}>{assigneeName}</Text>
-                {canEdit ? (
-                  <AnimatedPressable onPress={() => startEditDate(mission)} testID={`calendar-edit-${mission.id}`}>
-                    <Text style={styles.editLink}>{isAdmin ? t('calendar.editDate') : t('calendar.suggestNewDate')}</Text>
-                  </AnimatedPressable>
-                ) : (
-                  <Text style={styles.viewOnlyText}>{t('calendar.viewOnly')}</Text>
-                )}
-                {editingMissionId === mission.id && (
-                  <View style={{ gap: spacing.xs }}>
-                    <Text style={styles.dateInputLabel}>{t('calendar.newDateLabel')}</Text>
-                    <View style={styles.editRow}>
-                      <View style={{ flex: 1 }}>
+              <View style={styles.dotRow} testID={`calendar-day-${day}-dots`}>
+                {dayMissions.slice(0, 3).map((m, i) => (
+                  <View
+                    key={i}
+                    style={[styles.dot, { backgroundColor: (CATEGORY_META[m.category] ?? CATEGORY_META.other).color }]}
+                  />
+                ))}
+                {dayMissions.length > 3 && <View style={[styles.dot, styles.dotOverflow]} testID={`calendar-day-${day}-overflow`} />}
+              </View>
+            );
+          }}
+        />
+      </Card>
+
+      {selectedDay === null ? (
+        <EmptyState
+          icon={ICONS.calendar}
+          tone={sectionColors.calendar}
+          title={t('calendar.pickDayTitle')}
+          body={t('calendar.pickDayBody')}
+          testID="calendar-pick-day"
+        />
+      ) : (
+        <View style={styles.dayPanel}>
+          <View style={styles.dayPanelHeader}>
+            <Text style={styles.dayPanelTitle}>{selectedLabel}</Text>
+            {selectedMissions.length > 0 && (
+              <Text style={styles.dayPanelCount}>{t('calendar.missionsOnDay', { count: selectedMissions.length })}</Text>
+            )}
+          </View>
+
+          <ScrollView contentContainerStyle={styles.dayList} showsVerticalScrollIndicator={false}>
+            {selectedMissions.length === 0 && (
+              <EmptyState
+                icon="cafe-outline"
+                tone={sectionColors.calendar}
+                title={t('calendar.emptyDayTitle')}
+                body={t('calendar.emptyDayBody')}
+                testID="calendar-empty-day"
+              />
+            )}
+            {selectedMissions.map((mission, index) => {
+              const canEdit = isAdmin || mission.assigned_to === myMemberId;
+              const assigneeName = members.find((m) => m.id === mission.assigned_to)?.name ?? '';
+              return (
+                <FadeIn key={mission.id} index={index} skip={fromCache}>
+                  <Card testID={`calendar-mission-${mission.id}`} style={styles.missionCard}>
+                    <View style={styles.missionCardHeader}>
+                      <CategoryIcon category={mission.category} size={20} />
+                      <Text style={styles.missionCardTitle}>{mission.title}</Text>
+                      <Text style={styles.missionCardPoints}>{mission.points}</Text>
+                    </View>
+                    {assigneeName ? <Text style={styles.assigneeText}>{assigneeName}</Text> : null}
+                    {canEdit ? (
+                      <AnimatedPressable onPress={() => startEditDate(mission)} testID={`calendar-edit-${mission.id}`} style={styles.editAction}>
+                        <Ionicons name={ICONS.edit} size={16} color={sectionColors.calendar} />
+                        <Text style={styles.editLink}>{isAdmin ? t('calendar.editDate') : t('calendar.suggestNewDate')}</Text>
+                      </AnimatedPressable>
+                    ) : (
+                      <Text style={styles.viewOnlyText}>{t('calendar.viewOnly')}</Text>
+                    )}
+                    {editingMissionId === mission.id && (
+                      <View style={{ gap: spacing.sm }}>
+                        <Text style={styles.dateInputLabel}>{t('calendar.newDateLabel')}</Text>
                         <DateField
                           value={newDateValue}
                           onChange={setNewDateValue}
                           label={t('calendar.newDateLabel')}
                           testID={`calendar-date-input-${mission.id}`}
                         />
-                      </View>
-                      <AnimatedPressable onPress={() => handleSaveDate(mission.id)} testID={`calendar-date-save-${mission.id}`}>
-                        <Text style={styles.saveText}>{t('calendar.save')}</Text>
-                      </AnimatedPressable>
-                      <AnimatedPressable onPress={() => setEditingMissionId(null)} testID={`calendar-date-cancel-${mission.id}`}>
-                        <Text style={styles.cancelText}>{t('calendar.cancel')}</Text>
-                      </AnimatedPressable>
-                    </View>
-                    <Text style={styles.dateInputLabel}>
-                      {isAdmin ? t('calendar.reassignTo') : t('calendar.suggestReassign')}
-                    </Text>
-                    <View style={styles.chipRow}>
-                      {members
-                        .filter((m) => m.id !== mission.assigned_to)
-                        .map((m) => (
+                        <View style={styles.editRow}>
                           <AnimatedPressable
-                            key={m.id}
-                            onPress={() => handleReassign(mission.id, m.id)}
-                            testID={`calendar-reassign-${mission.id}-${m.id}`}
-                            style={styles.reassignChip}
+                            onPress={() => handleSaveDate(mission.id)}
+                            testID={`calendar-date-save-${mission.id}`}
+                            style={styles.saveButton}
                           >
-                            <Text style={styles.reassignChipText}>{m.name}</Text>
+                            <Text style={styles.saveButtonText}>{t('calendar.save')}</Text>
                           </AnimatedPressable>
-                        ))}
-                    </View>
-                    {scheduleError && (
-                      <Text testID={`calendar-schedule-error-${mission.id}`} style={styles.errorText}>
-                        {scheduleError}
-                      </Text>
+                          <AnimatedPressable
+                            onPress={() => setEditingMissionId(null)}
+                            testID={`calendar-date-cancel-${mission.id}`}
+                            style={styles.cancelButton}
+                          >
+                            <Text style={styles.cancelButtonText}>{t('calendar.cancel')}</Text>
+                          </AnimatedPressable>
+                        </View>
+                        <Text style={styles.dateInputLabel}>{isAdmin ? t('calendar.reassignTo') : t('calendar.suggestReassign')}</Text>
+                        <View style={styles.chipRow}>
+                          {members
+                            .filter((m) => m.id !== mission.assigned_to)
+                            .map((m) => (
+                              <AnimatedPressable
+                                key={m.id}
+                                onPress={() => handleReassign(mission.id, m.id)}
+                                testID={`calendar-reassign-${mission.id}-${m.id}`}
+                                style={styles.reassignChip}
+                              >
+                                <Text style={styles.reassignChipText}>{m.name}</Text>
+                              </AnimatedPressable>
+                            ))}
+                        </View>
+                        {scheduleError && (
+                          <Text testID={`calendar-schedule-error-${mission.id}`} style={styles.errorText}>
+                            {scheduleError}
+                          </Text>
+                        )}
+                      </View>
                     )}
-                  </View>
-                )}
-              </Card>
-            );
-          })}
-        </ScrollView>
+                  </Card>
+                </FadeIn>
+              );
+            })}
+          </ScrollView>
+        </View>
       )}
-    </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    padding: spacing.xl,
-    gap: spacing.md,
-    backgroundColor: colors.background,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: colors.ink,
-  },
-  monthNav: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  monthNavButton: {
-    padding: spacing.xs,
-  },
-  monthLabel: {
-    fontWeight: '700',
-    color: colors.ink,
-  },
-  toggleRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  toggleOption: {
-    flex: 1,
-    padding: spacing.sm,
-    borderRadius: radii.md,
-    alignItems: 'center',
-    backgroundColor: 'transparent',
-    borderWidth: 1.5,
-    borderColor: colors.ink,
-  },
-  toggleOptionActive: {
-    backgroundColor: colors.ink,
-  },
-  toggleOptionText: {
-    color: colors.ink,
-  },
-  toggleOptionTextActive: {
-    color: colors.cream,
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.xs,
-  },
-  dayCell: {
-    width: 40,
-    height: 40,
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
+  headerAction: {
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 2,
+    borderRadius: radii.pill,
+  },
+  syncMessage: {
+    ...type.caption,
+    color: colors.textMuted,
+  },
+  segment: {
+    flexDirection: 'row',
+    backgroundColor: colors.border,
+    borderRadius: radii.pill,
+    padding: 3,
+  },
+  segmentOption: {
+    flex: 1,
+    minHeight: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radii.pill,
+  },
+  segmentOptionActive: {
     backgroundColor: colors.surface,
   },
-  dayCellSelected: {
-    borderWidth: 2,
-    borderColor: colors.ink,
+  segmentText: {
+    ...type.label,
+    color: colors.textMuted,
   },
-  dayNumber: {
-    fontSize: 11,
+  segmentTextActive: {
     color: colors.ink,
+    fontWeight: '800',
+  },
+  gridCard: {
+    padding: spacing.md,
   },
   dotRow: {
     flexDirection: 'row',
-    gap: 2,
-  },
-  overflowText: {
-    fontSize: 9,
-    color: colors.textMuted,
-  },
-  chipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  syncButton: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+    gap: 3,
+    height: 6,
     alignItems: 'center',
-    gap: spacing.sm,
-    borderWidth: 1.5,
-    borderColor: colors.ink,
-    borderRadius: radii.lg,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-  },
-  syncButtonText: {
-    color: colors.ink,
-    fontWeight: '700',
-    fontSize: 12,
-  },
-  syncMessage: {
-    color: colors.textMuted,
-    fontSize: 12,
-  },
-  reassignChip: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.sm,
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    backgroundColor: colors.surface,
-  },
-  reassignChipText: {
-    fontSize: 11,
-    color: colors.ink,
   },
   dot: {
     width: 5,
     height: 5,
     borderRadius: 3,
   },
-  dayDetail: {
-    flex: 1,
-    borderTopWidth: 1,
-    borderColor: colors.border,
-    paddingTop: spacing.md,
+  dotOverflow: {
+    backgroundColor: colors.textMuted,
   },
-  emptyText: {
+  dayPanel: {
+    flex: 1,
+    gap: spacing.sm,
+  },
+  dayPanelHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  dayPanelTitle: {
+    ...type.subheading,
+    color: colors.ink,
+    flex: 1,
+  },
+  dayPanelCount: {
+    ...type.caption,
     color: colors.textMuted,
   },
+  dayList: {
+    gap: spacing.sm,
+    paddingBottom: spacing.md,
+    flexGrow: 1,
+  },
   missionCard: {
-    gap: spacing.xs,
+    gap: spacing.sm,
   },
   missionCardHeader: {
     flexDirection: 'row',
@@ -425,54 +389,89 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   missionCardTitle: {
-    fontWeight: '700',
+    ...type.bodyStrong,
     flex: 1,
     color: colors.ink,
   },
   missionCardPoints: {
-    fontSize: 12,
+    ...type.caption,
+    fontWeight: '800',
     color: colors.textMuted,
   },
   assigneeText: {
-    fontSize: 12,
+    ...type.caption,
     color: colors.textMuted,
   },
+  editAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    minHeight: 40,
+  },
   editLink: {
-    fontSize: 12,
-    color: colors.teal,
+    ...type.caption,
+    fontWeight: '700',
+    color: sectionColors.calendar,
   },
   viewOnlyText: {
-    fontSize: 11,
+    ...type.caption,
     color: colors.textMuted,
   },
   dateInputLabel: {
-    fontSize: 11,
+    ...type.caption,
     color: colors.textMuted,
   },
   editRow: {
     flexDirection: 'row',
     gap: spacing.sm,
-    alignItems: 'center',
   },
-  dateInput: {
+  saveButton: {
+    flex: 1,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radii.md,
+    backgroundColor: sectionColors.calendar,
+  },
+  saveButtonText: {
+    ...type.label,
+    fontWeight: '800',
+    color: colors.surface,
+  },
+  cancelButton: {
+    flex: 1,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radii.md,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+  },
+  cancelButtonText: {
+    ...type.label,
+    fontWeight: '700',
+    color: colors.textMuted,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  reassignChip: {
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radii.sm,
-    padding: spacing.xs,
-    width: 120,
+    borderRadius: radii.pill,
+    paddingHorizontal: spacing.md,
+    minHeight: 40,
+    justifyContent: 'center',
     backgroundColor: colors.surface,
+  },
+  reassignChipText: {
+    ...type.caption,
     color: colors.ink,
   },
-  saveText: {
-    color: colors.sage,
-    fontWeight: '700',
-  },
-  cancelText: {
-    color: colors.rose,
-    fontWeight: '700',
-  },
   errorText: {
+    ...type.caption,
     color: colors.rose,
-    fontSize: 12,
   },
 });

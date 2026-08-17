@@ -1,24 +1,20 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 import { View, Text, FlatList, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { getSuggestions, resolveSuggestion, getHouseMembers, type Mission } from '../../features/missions/api';
-import {
-  getPendingSwapsForAdmin,
-  getPendingUnavailability,
-  resolveSwap,
-  resolveUnavailability,
-  type SwapRequest,
-  type UnavailabilityRequest,
-} from '../../features/requests/api';
+import { resolveSuggestion, type Mission } from '../../features/missions/api';
+import { resolveSwap, resolveUnavailability, type SwapRequest, type UnavailabilityRequest } from '../../features/requests/api';
+import { fetchInbox, inboxKey, type InboxItem } from '../../features/tabs-data';
+import { useScreenData } from '../../lib/screen-data';
 import { AnimatedPressable } from '../../components/AnimatedPressable';
 import { Card } from '../../components/Card';
 import { CategoryIcon } from '../../components/CategoryIcon';
-import { LoadErrorView } from '../../components/LoadErrorView';
-import { LoadingScreen, FadeIn } from '../../components/Motion';
+import { EmptyState } from '../../components/EmptyState';
+import { Screen } from '../../components/Screen';
+import { FadeIn } from '../../components/Motion';
 import * as haptics from '../../lib/haptics';
-import { colors, spacing, radii, sectionColors, stateColors, ICONS, type IoniconName } from '../../theme';
+import { colors, spacing, radii, type, sectionColors, stateColors, ICONS, tint, type IoniconName } from '../../theme';
 
 function suggestionTypeOf(mission: Mission): 'new_mission' | 'points_edit' | 'schedule_edit' {
   if (mission.status === 'pending_approval') {
@@ -52,193 +48,203 @@ const KIND_ICON: Record<'new_mission' | 'points_edit' | 'schedule_edit', Ionicon
   schedule_edit: 'calendar-outline',
 };
 
-type InboxItem =
-  | { kind: 'mission'; mission: Mission }
-  | { kind: 'swap'; swap: SwapRequest }
-  | { kind: 'unavailability'; unavailability: UnavailabilityRequest };
+function itemId(item: InboxItem): string {
+  return item.kind === 'mission' ? item.mission.id : item.kind === 'swap' ? item.swap.id : item.unavailability.id;
+}
 
 export default function SuggestionsScreen() {
   const { t } = useTranslation();
   const { houseId } = useLocalSearchParams<{ houseId: string }>();
-  const [items, setItems] = useState<InboxItem[]>([]);
-  const [members, setMembers] = useState<{ id: string; name: string; role: 'admin' | 'member' }[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
 
-  async function load() {
-    setLoadError(null);
-    setLoading(true);
-    try {
-      const [missions, swaps, unavailability, houseMembers] = await Promise.all([
-        getSuggestions(houseId),
-        getPendingSwapsForAdmin(houseId),
-        getPendingUnavailability(houseId),
-        getHouseMembers(houseId),
-      ]);
-      setMembers(houseMembers);
-      setItems([
-        ...missions.map((mission): InboxItem => ({ kind: 'mission', mission })),
-        ...swaps.map((swap): InboxItem => ({ kind: 'swap', swap })),
-        ...unavailability.map((unavailability): InboxItem => ({ kind: 'unavailability', unavailability })),
-      ]);
-    } catch (e) {
-      setLoadError(e instanceof Error ? e.message : null);
-    } finally {
-      setLoading(false);
-    }
+  const load = useCallback(() => fetchInbox(houseId), [houseId]);
+
+  const { data, fromCache, loading, error, refresh, update } = useScreenData(inboxKey(houseId), load);
+
+  const items = useMemo(() => data?.items ?? [], [data]);
+  const members = useMemo(() => data?.members ?? [], [data]);
+  const isAdmin = data?.isAdmin;
+
+  /**
+   * A decision removes the card before the request finishes.
+   *
+   * Approving used to blank the whole inbox to skeletons and rebuild it, which
+   * on a list of five suggestions meant five full page loads to clear it.
+   */
+  function dismiss(id: string) {
+    update((current) => ({ ...current, items: current.items.filter((item) => itemId(item) !== id) }));
   }
-
-  useEffect(() => {
-    load();
-  }, [houseId]);
 
   async function handleMissionDecision(mission: Mission, decision: 'approve' | 'reject') {
     haptics.decide();
+    dismiss(mission.id);
     await resolveSuggestion(suggestionTypeOf(mission), mission.id, decision);
-    await load();
+    await refresh();
   }
 
   async function handleSwapDecision(swap: SwapRequest, decision: 'approve' | 'reject') {
     haptics.decide();
+    dismiss(swap.id);
     await resolveSwap(swap.id, decision);
-    await load();
+    await refresh();
   }
 
   async function handleUnavailabilityDecision(unavailability: UnavailabilityRequest, decision: 'approve' | 'reject') {
     haptics.decide();
+    dismiss(unavailability.id);
     await resolveUnavailability(unavailability.id, decision);
-    await load();
+    await refresh();
   }
 
-  if (loading) {
-    return <LoadingScreen />;
-  }
-
-  if (loadError !== null) {
-    return <LoadErrorView message={loadError} onRetry={load} testID="suggestions-load-error" />;
+  function decisionRow(onApprove: () => void, onReject: () => void, approveId: string, rejectId: string) {
+    return (
+      <View style={styles.decisionRow}>
+        <AnimatedPressable onPress={onApprove} testID={approveId} style={styles.approveButton}>
+          <Ionicons name={ICONS.approve} size={18} color={colors.surface} />
+          <Text style={styles.approveButtonText}>{t('suggestions.approve')}</Text>
+        </AnimatedPressable>
+        <AnimatedPressable onPress={onReject} testID={rejectId} style={styles.rejectButton}>
+          <Ionicons name={ICONS.reject} size={18} color={colors.rose} />
+          <Text style={styles.rejectButtonText}>{t('suggestions.reject')}</Text>
+        </AnimatedPressable>
+      </View>
+    );
   }
 
   return (
-    <View style={styles.screen}>
-      <View style={styles.titleRow}>
-        <Ionicons name={ICONS.inbox} size={22} color={sectionColors.inbox} />
-        <Text style={styles.title}>{t('suggestions.title')}</Text>
-      </View>
+    <Screen
+      section="inbox"
+      title={t('suggestions.title')}
+      icon={ICONS.inbox}
+      tab="inbox"
+      houseId={houseId}
+      isAdmin={isAdmin}
+      inboxCount={items.length}
+      loading={loading}
+      error={error}
+      onRetry={refresh}
+      errorTestID="suggestions-load-error"
+    >
       <FlatList
         data={items}
-        keyExtractor={(item) => (item.kind === 'mission' ? item.mission.id : item.kind === 'swap' ? item.swap.id : item.unavailability.id)}
-        contentContainerStyle={{ gap: spacing.sm }}
-        ListEmptyComponent={<Text style={styles.emptyText}>{t('suggestions.empty')}</Text>}
-        renderItem={({ item }) => {
+        keyExtractor={itemId}
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          <EmptyState
+            icon="checkmark-done-outline"
+            tone={sectionColors.inbox}
+            title={t('suggestions.emptyTitle')}
+            body={t('suggestions.emptyBody')}
+            testID="suggestions-empty"
+          />
+        }
+        renderItem={({ item, index }) => {
           if (item.kind === 'mission') {
             const kind = suggestionTypeOf(item.mission);
             return (
-              <Card testID={`suggestion-${item.mission.id}`} style={[styles.card, { borderStartWidth: 3, borderStartColor: stateColors.proposed }]}>
-                <View style={styles.cardHeader}>
-                  <CategoryIcon category={item.mission.category} size={18} />
-                  <Ionicons name={KIND_ICON[kind]} size={14} color={colors.textMuted} />
-                  <Text style={styles.cardKind}>
-                    {kind === 'new_mission' ? t('suggestions.newMission') : kind === 'points_edit' ? t('suggestions.pointsEdit') : t('suggestions.scheduleEdit')}
+              <FadeIn index={index} skip={fromCache}>
+                <Card
+                  testID={`suggestion-${item.mission.id}`}
+                  style={[styles.card, { borderStartWidth: 4, borderStartColor: stateColors.proposed }]}
+                >
+                  <View style={styles.cardHeader}>
+                    <CategoryIcon category={item.mission.category} size={20} />
+                    <View style={[styles.kindPill, { backgroundColor: tint(stateColors.proposed, '1A') }]}>
+                      <Ionicons name={KIND_ICON[kind]} size={13} color={stateColors.proposed} />
+                      <Text style={[styles.cardKind, { color: stateColors.proposed }]}>
+                        {kind === 'new_mission'
+                          ? t('suggestions.newMission')
+                          : kind === 'points_edit'
+                            ? t('suggestions.pointsEdit')
+                            : t('suggestions.scheduleEdit')}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={styles.cardBody}>
+                    {kind === 'new_mission'
+                      ? `${item.mission.title} · ${item.mission.points}`
+                      : kind === 'points_edit'
+                        ? `${item.mission.title} · ${item.mission.points} → ${item.mission.proposed_points}`
+                        : scheduleEditDetail(item.mission, members)}
                   </Text>
-                </View>
-                <Text style={styles.cardBody}>
-                  {kind === 'new_mission'
-                    ? `${item.mission.title} · ${item.mission.points}`
-                    : kind === 'points_edit'
-                      ? `${item.mission.title} · ${item.mission.points} → ${item.mission.proposed_points}`
-                      : scheduleEditDetail(item.mission, members)}
-                </Text>
-                <View style={styles.decisionRow}>
-                  <AnimatedPressable onPress={() => handleMissionDecision(item.mission, 'approve')} testID={`approve-${item.mission.id}`} style={styles.approveButton}>
-                    <Text style={styles.approveButtonText}>{t('suggestions.approve')}</Text>
-                  </AnimatedPressable>
-                  <AnimatedPressable onPress={() => handleMissionDecision(item.mission, 'reject')} testID={`reject-${item.mission.id}`} style={styles.rejectButton}>
-                    <Text style={styles.rejectButtonText}>{t('suggestions.reject')}</Text>
-                  </AnimatedPressable>
-                </View>
-              </Card>
+                  {decisionRow(
+                    () => handleMissionDecision(item.mission, 'approve'),
+                    () => handleMissionDecision(item.mission, 'reject'),
+                    `approve-${item.mission.id}`,
+                    `reject-${item.mission.id}`
+                  )}
+                </Card>
+              </FadeIn>
             );
           }
 
           if (item.kind === 'swap') {
             return (
-              <Card testID={`suggestion-swap-${item.swap.id}`} style={[styles.card, { borderStartWidth: 3, borderStartColor: sectionColors.calendar }]}>
-                <View style={styles.cardHeader}>
-                  <Ionicons name="swap-horizontal-outline" size={18} color={colors.indigo} />
-                  <Text style={styles.cardKind}>{t('suggestions.swap')}</Text>
-                </View>
-                <Text style={styles.cardBody}>
-                  {item.swap.mission_instances?.title ?? ''} · {members.find((m) => m.id === item.swap.from_member)?.name ?? item.swap.from_member} →{' '}
-                  {members.find((m) => m.id === item.swap.to_member)?.name ?? item.swap.to_member}
-                </Text>
-                <View style={styles.decisionRow}>
-                  <AnimatedPressable onPress={() => handleSwapDecision(item.swap, 'approve')} testID={`approve-swap-${item.swap.id}`} style={styles.approveButton}>
-                    <Text style={styles.approveButtonText}>{t('suggestions.approve')}</Text>
-                  </AnimatedPressable>
-                  <AnimatedPressable onPress={() => handleSwapDecision(item.swap, 'reject')} testID={`reject-swap-${item.swap.id}`} style={styles.rejectButton}>
-                    <Text style={styles.rejectButtonText}>{t('suggestions.reject')}</Text>
-                  </AnimatedPressable>
-                </View>
-              </Card>
+              <FadeIn index={index} skip={fromCache}>
+                <Card
+                  testID={`suggestion-swap-${item.swap.id}`}
+                  style={[styles.card, { borderStartWidth: 4, borderStartColor: sectionColors.calendar }]}
+                >
+                  <View style={styles.cardHeader}>
+                    <View style={[styles.kindPill, { backgroundColor: tint(sectionColors.calendar, '1A') }]}>
+                      <Ionicons name={ICONS.swap} size={13} color={sectionColors.calendar} />
+                      <Text style={[styles.cardKind, { color: sectionColors.calendar }]}>{t('suggestions.swap')}</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.cardBody}>
+                    {item.swap.mission_instances?.title ?? ''} ·{' '}
+                    {members.find((m) => m.id === item.swap.from_member)?.name ?? item.swap.from_member} →{' '}
+                    {members.find((m) => m.id === item.swap.to_member)?.name ?? item.swap.to_member}
+                  </Text>
+                  {decisionRow(
+                    () => handleSwapDecision(item.swap, 'approve'),
+                    () => handleSwapDecision(item.swap, 'reject'),
+                    `approve-swap-${item.swap.id}`,
+                    `reject-swap-${item.swap.id}`
+                  )}
+                </Card>
+              </FadeIn>
             );
           }
 
           return (
-            <Card
-              testID={`suggestion-unavailability-${item.unavailability.id}`}
-              style={[styles.card, { borderStartWidth: 3, borderStartColor: sectionColors.unavailability }]}
-            >
-              <View style={styles.cardHeader}>
-                <Ionicons name="airplane-outline" size={18} color={colors.violet} />
-                <Text style={styles.cardKind}>{t('suggestions.unavailability')}</Text>
-              </View>
-              <Text style={styles.cardBody}>
-                {item.unavailability.period_start} → {item.unavailability.period_end}
-                {item.unavailability.reason ? ` · ${item.unavailability.reason}` : ''}
-              </Text>
-              <View style={styles.decisionRow}>
-                <AnimatedPressable
-                  onPress={() => handleUnavailabilityDecision(item.unavailability, 'approve')}
-                  testID={`approve-unavailability-${item.unavailability.id}`}
-                  style={styles.approveButton}
-                >
-                  <Text style={styles.approveButtonText}>{t('suggestions.approve')}</Text>
-                </AnimatedPressable>
-                <AnimatedPressable
-                  onPress={() => handleUnavailabilityDecision(item.unavailability, 'reject')}
-                  testID={`reject-unavailability-${item.unavailability.id}`}
-                  style={styles.rejectButton}
-                >
-                  <Text style={styles.rejectButtonText}>{t('suggestions.reject')}</Text>
-                </AnimatedPressable>
-              </View>
-            </Card>
+            <FadeIn index={index} skip={fromCache}>
+              <Card
+                testID={`suggestion-unavailability-${item.unavailability.id}`}
+                style={[styles.card, { borderStartWidth: 4, borderStartColor: sectionColors.unavailability }]}
+              >
+                <View style={styles.cardHeader}>
+                  <View style={[styles.kindPill, { backgroundColor: tint(sectionColors.unavailability, '1A') }]}>
+                    <Ionicons name={ICONS.unavailability} size={13} color={sectionColors.unavailability} />
+                    <Text style={[styles.cardKind, { color: sectionColors.unavailability }]}>
+                      {t('suggestions.unavailability')}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={styles.cardBody}>
+                  {item.unavailability.period_start} → {item.unavailability.period_end}
+                  {item.unavailability.reason ? ` · ${item.unavailability.reason}` : ''}
+                </Text>
+                {decisionRow(
+                  () => handleUnavailabilityDecision(item.unavailability, 'approve'),
+                  () => handleUnavailabilityDecision(item.unavailability, 'reject'),
+                  `approve-unavailability-${item.unavailability.id}`,
+                  `reject-unavailability-${item.unavailability.id}`
+                )}
+              </Card>
+            </FadeIn>
           );
         }}
       />
-    </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    padding: spacing.xl,
-    gap: spacing.lg,
-    backgroundColor: colors.background,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  listContent: {
     gap: spacing.sm,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: colors.ink,
-  },
-  emptyText: {
-    color: colors.textMuted,
+    paddingBottom: spacing.md,
+    flexGrow: 1,
   },
   card: {
     gap: spacing.sm,
@@ -246,15 +252,22 @@ const styles = StyleSheet.create({
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: spacing.sm,
+  },
+  kindPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.xs,
+    paddingVertical: 3,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radii.pill,
   },
   cardKind: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.textMuted,
+    ...type.caption,
+    fontWeight: '800',
   },
   cardBody: {
-    fontWeight: '700',
+    ...type.bodyStrong,
     color: colors.ink,
   },
   decisionRow: {
@@ -263,25 +276,33 @@ const styles = StyleSheet.create({
   },
   approveButton: {
     flex: 1,
-    backgroundColor: colors.sage,
-    borderRadius: radii.md,
-    padding: spacing.sm,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    backgroundColor: stateColors.done,
+    borderRadius: radii.md,
+    minHeight: 46,
   },
   approveButtonText: {
+    ...type.label,
+    fontWeight: '800',
     color: colors.surface,
-    fontWeight: '700',
   },
   rejectButton: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
     borderWidth: 1.5,
     borderColor: colors.rose,
     borderRadius: radii.md,
-    padding: spacing.sm,
-    alignItems: 'center',
+    minHeight: 46,
   },
   rejectButtonText: {
+    ...type.label,
+    fontWeight: '800',
     color: colors.rose,
-    fontWeight: '700',
   },
 });

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { gotoSignIn } from './support/app';
 
 /**
  * Regression guard for invisible input text.
@@ -13,7 +14,7 @@ test.use({ colorScheme: 'dark', viewport: { width: 900, height: 1400 } });
 test('input text stays readable in dark mode', async ({ page }) => {
   test.setTimeout(120_000);
 
-  await page.goto('/');
+  await gotoSignIn(page);
   const email = page.getByTestId('auth-email-input');
   await expect(email).toBeVisible({ timeout: 60_000 });
 

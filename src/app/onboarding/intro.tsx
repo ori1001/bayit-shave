@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { AnimatedPressable } from '../../components/AnimatedPressable';
 import {
@@ -22,7 +23,7 @@ import {
 } from '../../components/onboarding/Illustrations';
 import { markIntroSeen } from '../../features/onboarding/intro';
 import * as haptics from '../../lib/haptics';
-import { colors, spacing, radii, sectionColors, ICONS, chevronNext } from '../../theme';
+import { colors, spacing, radii, type, sectionColors, ICONS, chevronNext } from '../../theme';
 
 const PAGES = [
   { key: 's1', Illustration: HousesIllustration },
@@ -36,6 +37,7 @@ export default function IntroScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const scrollRef = useRef<ScrollView>(null);
   const [page, setPage] = useState(0);
   const [reduceMotion, setReduceMotion] = useState(false);
@@ -71,9 +73,9 @@ export default function IntroScreen() {
   }
 
   return (
-    <View style={styles.screen}>
+    <View style={[styles.screen, { paddingBottom: insets.bottom + spacing.xl }]}>
       {!isLast && (
-        <AnimatedPressable onPress={finish} testID="intro-skip" style={styles.skip}>
+        <AnimatedPressable onPress={finish} testID="intro-skip" style={[styles.skip, { top: insets.top + spacing.sm }]}>
           <Text style={styles.skipText}>{t('onboarding.skip')}</Text>
         </AnimatedPressable>
       )}
@@ -134,16 +136,17 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: colors.background,
-    paddingBottom: spacing.xl,
   },
   skip: {
     position: 'absolute',
-    top: spacing.xxl,
-    end: spacing.xl,
+    end: spacing.lg,
     zIndex: 2,
-    padding: spacing.sm,
+    minHeight: 44,
+    paddingHorizontal: spacing.md,
+    justifyContent: 'center',
   },
   skipText: {
+    ...type.label,
     color: colors.textMuted,
     fontWeight: '700',
   },
@@ -155,13 +158,12 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   title: {
-    fontSize: 26,
-    fontWeight: '800',
+    ...type.title,
     color: colors.ink,
     textAlign: 'center',
   },
   body: {
-    fontSize: 15,
+    ...type.body,
     color: colors.textMuted,
     textAlign: 'center',
     maxWidth: 320,
@@ -173,13 +175,13 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.lg,
   },
   dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: colors.border,
   },
   dotActive: {
-    width: 18,
+    width: 22,
     backgroundColor: sectionColors.templates,
   },
   actions: {
@@ -192,10 +194,10 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     backgroundColor: colors.ink,
     borderRadius: radii.lg,
-    padding: spacing.md,
+    minHeight: 52,
   },
   primaryText: {
+    ...type.bodyStrong,
     color: colors.cream,
-    fontWeight: '700',
   },
 });

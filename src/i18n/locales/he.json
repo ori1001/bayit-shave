@@ -54,7 +54,14 @@
     "calendar": "לוח שנה",
     "settings": "הגדרות הבית",
     "templates": "משימות קבועות",
-    "pendingSync": "{{count}} סימוני ביצוע ממתינים לסנכרון"
+    "pendingSync": "{{count}} סימוני ביצוע ממתינים לסנכרון",
+    "allDone": "סיימת להיום",
+    "progress": "{{done}} מתוך {{total}} הושלמו",
+    "pointsToday": "{{count}} נק׳",
+    "emptyTitle": "אין לך משימות היום",
+    "emptyBody": "תיהנו, או הציעו משימה לבית.",
+    "doneTitle": "הכול בוצע",
+    "doneBody": "כל הרשימה סומנה. כל הכבוד."
   },
   "missions": {
     "suggestTitle": "הצעת משימה",
@@ -93,7 +100,9 @@
     "unavailability": "בקשת חופש",
     "approve": "אשר",
     "reject": "דחה",
-    "reassignLabel": "אחראי מוצע"
+    "reassignLabel": "אחראי מוצע",
+    "emptyTitle": "התיבה ריקה",
+    "emptyBody": "הצעות, בקשות החלפה ובקשות חופש יגיעו לכאן."
   },
   "balance": {
     "title": "מאזן הבית",
@@ -107,7 +116,9 @@
     "houseTotalEarned": "סה\"כ נצבר",
     "houseTotalTarget": "סה\"כ יעד",
     "houseBalanced": "הבית מאוזן",
-    "houseImbalanced": "עדיין לא מאוזן"
+    "houseImbalanced": "עדיין לא מאוזן",
+    "emptyTitle": "אין עדיין את מי לאזן",
+    "emptyBody": "ברגע שהשותפים יצטרפו, החלק שלהם יופיע כאן."
   },
   "swap": {
     "requestSwap": "בקש/י החלפה",
@@ -142,11 +153,17 @@
     "suggestReassign": "הצע אדם אחר",
     "syncToDevice": "הוסף ליומן שלי",
     "synced": "סונכרנו {{count}} משימות",
-    "syncUnavailable": "אין גישה ליומן במכשיר זה"
+    "syncUnavailable": "אין גישה ליומן במכשיר זה",
+    "pickDayTitle": "בחרו יום",
+    "pickDayBody": "הקישו על תאריך כדי לראות מה מתוכנן בו.",
+    "emptyDayTitle": "אין משימות ביום זה",
+    "emptyDayBody": "לא מתוזמנות משימות בתאריך הזה.",
+    "missionsOnDay": "{{count}} משימות"
   },
   "common": {
     "loadError": "טעינת הנתונים נכשלה. בדוק את החיבור לאינטרנט.",
-    "retry": "נסה שוב"
+    "retry": "נסה שוב",
+    "close": "סגור"
   },
   "settings": {
     "title": "הגדרות הבית",
@@ -162,7 +179,20 @@
     "weightHint": "משקל נמוך יותר פירושו יעד נקודות קטן יותר. חל על ריצות איזון עתידיות בלבד.",
     "save": "שמור הגדרות",
     "saved": "ההגדרות נשמרו",
-    "adminOnly": "רק מנהל הבית יכול לשנות הגדרות אלו."
+    "adminOnly": "רק מנהל הבית יכול לשנות הגדרות אלו.",
+    "languageLabel": "שפה",
+    "language_he": "עברית",
+    "language_en": "English",
+    "languageHint": "נבחרה לפי האזור שלכם בהפעלה הראשונה.",
+    "languageRestart": "הפעילו מחדש את האפליקציה כדי להשלים את שינוי כיוון הפריסה.",
+    "adminLabel": "מנהל/ת הבית",
+    "adminHint": "המנהל/ת קובע/ת את הכללים ומאשר/ת הצעות. העברת התפקיד תהפוך אתכם לחברי בית רגילים.",
+    "currentAdmin": "מנהל/ת",
+    "makeAdmin": "העבר/י ניהול",
+    "confirmTransfer": "להעביר את ניהול הבית ל{{name}}? תהפכו לחברי בית רגילים.",
+    "confirmTransferYes": "העבר",
+    "transferred": "{{name}} מנהל/ת הבית מעכשיו",
+    "transferError": "העברת הניהול נכשלה"
   },
   "templates": {
     "title": "משימות קבועות",
@@ -181,7 +211,13 @@
     "empty": "אין עדיין משימות קבועות",
     "adminOnly": "רק מנהל הבית יכול לנהל משימות קבועות.",
     "everyWeekday": "כל יום {{day}}",
-    "everyMonthDay": "כל חודש ב-{{day}}"
+    "everyMonthDay": "כל חודש ב-{{day}}",
+    "emptyTitle": "אין עדיין משימות קבועות",
+    "emptyBody": "הוסיפו אחת והאפליקציה תתזמן אותה בשבילכם.",
+    "eligibleLabel": "מי יכול/ה לקחת",
+    "eligibleEveryone": "כולם",
+    "eligibleHint": "אפשר להגביל לחלק מהבית, או להשאיר פתוח לכולם.",
+    "eligibleSummary": "רק {{names}}"
   },
   "tabs": {
     "today": "היום",
@@ -196,6 +232,7 @@
     "settings": "הגדרות הבית",
     "timeOff": "בקשת חופשה",
     "suggestions": "תיבת ההצעות",
-    "close": "סגור"
+    "close": "סגור",
+    "youAreAdmin": "מנהל/ת"
   }
 }

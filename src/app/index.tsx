@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { View, Text, TextInput, StyleSheet } from 'react-native';
+import { View, Text, TextInput, ScrollView, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
 import { signUp, signIn, signInWithGoogle, resendConfirmation, openMailApp } from '../features/auth/api';
@@ -11,11 +12,12 @@ import { AnimatedPressable } from '../components/AnimatedPressable';
 import { CategoryIcon } from '../components/CategoryIcon';
 import { Logo, LogoMark } from '../components/Logo';
 import { BrandedLoading } from '../components/Motion';
-import { colors, spacing, radii, MISSION_CATEGORIES } from '../theme';
+import { colors, spacing, radii, type, MISSION_CATEGORIES } from '../theme';
 
 export default function WelcomeScreen() {
   const { t } = useTranslation();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [hasSession, setHasSession] = useState<boolean | null>(null);
   const [mode, setMode] = useState<'signUp' | 'signIn'>('signUp');
   const [email, setEmail] = useState('');
@@ -124,7 +126,10 @@ export default function WelcomeScreen() {
 
   if (awaitingConfirmation) {
     return (
-      <View style={styles.screen} testID="auth-awaiting-confirmation">
+      <View
+        style={[styles.screen, { paddingTop: insets.top + spacing.xl, paddingBottom: insets.bottom + spacing.xl }]}
+        testID="auth-awaiting-confirmation"
+      >
         <LogoMark size={64} />
         <Text style={styles.appName}>{t('auth.checkEmail')}</Text>
         <Text style={styles.tagline}>{t('auth.checkEmailBody', { email })}</Text>
@@ -159,7 +164,17 @@ export default function WelcomeScreen() {
 
   if (!hasSession) {
     return (
-      <View style={styles.screen}>
+      // Scrolls because the form plus the keyboard does not fit a small phone,
+      // and a submit button you cannot reach is worse than a little scrolling.
+      <ScrollView
+        style={styles.flex}
+        contentContainerStyle={[
+          styles.screen,
+          { paddingTop: insets.top + spacing.xl, paddingBottom: insets.bottom + spacing.xl },
+        ]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <Logo size={84} />
         <Text style={styles.tagline}>{t('onboarding.tagline')}</Text>
         {/* The category palette is the app's whole visual identity and used to
@@ -218,15 +233,15 @@ export default function WelcomeScreen() {
           <Ionicons name="logo-google" size={18} color={colors.ink} />
           <Text style={styles.googleButtonText}>{t('auth.continueWithGoogle')}</Text>
         </AnimatedPressable>
-        <AnimatedPressable onPress={() => setMode(mode === 'signUp' ? 'signIn' : 'signUp')} testID="auth-switch-mode">
+        <AnimatedPressable onPress={() => setMode(mode === 'signUp' ? 'signIn' : 'signUp')} testID="auth-switch-mode" style={styles.switchMode}>
           <Text style={styles.switchModeText}>{t(mode === 'signUp' ? 'auth.switchToSignIn' : 'auth.switchToSignUp')}</Text>
         </AnimatedPressable>
-      </View>
+      </ScrollView>
     );
   }
 
   return (
-    <View style={styles.screen}>
+    <View style={[styles.screen, { paddingTop: insets.top + spacing.xl, paddingBottom: insets.bottom + spacing.xl }]}>
       <Logo size={84} />
       <Text style={styles.tagline}>{t('onboarding.tagline')}</Text>
       <View style={{ width: '100%', gap: spacing.md, marginTop: spacing.lg }}>
@@ -244,13 +259,22 @@ export default function WelcomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: {
+  flex: {
     flex: 1,
+    backgroundColor: colors.background,
+  },
+  screen: {
+    flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: spacing.xl,
+    paddingHorizontal: spacing.xl,
     gap: spacing.md,
     backgroundColor: colors.background,
+    // Phones are the target; on a tablet or the web build a form stretched to
+    // the full width reads as a broken layout rather than a spacious one.
+    width: '100%',
+    maxWidth: 480,
+    alignSelf: 'center',
   },
   brandBadge: {
     width: 72,
@@ -268,11 +292,12 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   appName: {
-    fontSize: 28,
-    fontWeight: '800',
+    ...type.title,
     color: colors.ink,
+    textAlign: 'center',
   },
   tagline: {
+    ...type.body,
     textAlign: 'center',
     color: colors.textMuted,
   },
@@ -281,12 +306,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radii.md,
-    padding: spacing.md,
+    paddingHorizontal: spacing.md,
+    minHeight: 52,
     backgroundColor: colors.surface,
+    ...type.body,
     color: colors.ink,
   },
   errorText: {
+    ...type.body,
     color: colors.rose,
+    textAlign: 'center',
   },
   primaryButton: {
     flexDirection: 'row',
@@ -295,12 +324,12 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     backgroundColor: colors.ink,
     borderRadius: radii.lg,
-    padding: spacing.md,
+    minHeight: 52,
     width: '100%',
   },
   primaryButtonText: {
+    ...type.bodyStrong,
     color: colors.cream,
-    fontWeight: '700',
   },
   secondaryButton: {
     flexDirection: 'row',
@@ -310,13 +339,18 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: colors.ink,
     borderRadius: radii.lg,
-    padding: spacing.md,
+    minHeight: 52,
   },
   secondaryButtonText: {
+    ...type.bodyStrong,
     color: colors.ink,
-    fontWeight: '700',
+  },
+  switchMode: {
+    minHeight: 44,
+    justifyContent: 'center',
   },
   switchModeText: {
+    ...type.label,
     color: colors.textMuted,
   },
   dividerRow: {
@@ -331,8 +365,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.border,
   },
   dividerText: {
+    ...type.caption,
     color: colors.textMuted,
-    fontSize: 12,
   },
   googleButton: {
     flexDirection: 'row',
@@ -342,12 +376,12 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: colors.border,
     borderRadius: radii.lg,
-    padding: spacing.md,
+    minHeight: 52,
     width: '100%',
     backgroundColor: colors.surface,
   },
   googleButtonText: {
+    ...type.bodyStrong,
     color: colors.ink,
-    fontWeight: '700',
   },
 });

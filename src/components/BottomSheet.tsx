@@ -2,7 +2,8 @@ import { Modal, View, Text, Pressable, ScrollView, StyleSheet } from 'react-nati
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated';
-import { colors, spacing, radii } from '../theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { colors, spacing, radii, type } from '../theme';
 
 interface BottomSheetProps {
   visible: boolean;
@@ -25,6 +26,7 @@ interface BottomSheetProps {
  */
 export function BottomSheet({ visible, onClose, title, children, testID = 'bottom-sheet' }: BottomSheetProps) {
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
 
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
@@ -50,7 +52,10 @@ export function BottomSheet({ visible, onClose, title, children, testID = 'botto
             <Ionicons name="close-circle" size={24} color={colors.textMuted} />
           </Pressable>
         </View>
-        <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          contentContainerStyle={[styles.body, { paddingBottom: insets.bottom + spacing.xl }]}
+          keyboardShouldPersistTaps="handled"
+        >
           {children}
         </ScrollView>
       </Animated.View>
@@ -97,13 +102,12 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.sm,
   },
   title: {
-    fontSize: 18,
-    fontWeight: '800',
+    ...type.heading,
     color: colors.ink,
+    flex: 1,
   },
   body: {
     paddingHorizontal: spacing.xl,
-    paddingBottom: spacing.xxl,
     gap: spacing.md,
   },
 });

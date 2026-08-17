@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { View, StyleSheet, type ViewStyle, type StyleProp } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -25,17 +26,29 @@ interface FadeInProps {
   /** Stagger index — each step delays the entrance by 45ms. */
   index?: number;
   from?: 'bottom' | 'top' | 'none';
+  /**
+   * Render immediately, with no entrance at all.
+   *
+   * Set when the content came from cache. Coming back to a tab, the rows are
+   * already known, and re-running a staggered rise underneath the screen's own
+   * transition is what made switching tabs look unsettled.
+   */
+  skip?: boolean;
   style?: StyleProp<ViewStyle>;
   testID?: string;
 }
 
 /** Entrance animation: content rises and fades in rather than popping. */
-export function FadeIn({ children, index = 0, from = 'bottom', style, testID }: FadeInProps) {
-  const progress = useSharedValue(0);
+export function FadeIn({ children, index = 0, from = 'bottom', skip = false, style, testID }: FadeInProps) {
+  const progress = useSharedValue(skip ? 1 : 0);
 
   useEffect(() => {
+    if (skip) {
+      progress.value = 1;
+      return;
+    }
     progress.value = withDelay(index * 45, withTiming(1, { duration: 260, easing: Easing.out(Easing.cubic) }));
-  }, [index, progress]);
+  }, [index, progress, skip]);
 
   const offset = from === 'none' ? 0 : from === 'top' ? -12 : 12;
 
@@ -71,11 +84,15 @@ export function Skeleton({ height = 64, style }: { height?: number; style?: Styl
 
 /** Full-screen loading state built from skeleton rows. */
 export function LoadingScreen({ rows = 4, testID = 'loading-screen' }: { rows?: number; testID?: string }) {
+  const insets = useSafeAreaInsets();
+
   return (
-    <View style={styles.loadingScreen} testID={testID}>
-      <Skeleton height={28} style={{ width: '55%' }} />
+    // Padded like a real screen, so the skeleton sits where the content will
+    // rather than jumping down a notch's worth when the data arrives.
+    <View style={[styles.loadingScreen, { paddingTop: insets.top + spacing.xl }]} testID={testID}>
+      <Skeleton height={32} style={{ width: '55%' }} />
       {Array.from({ length: rows }).map((_, i) => (
-        <Skeleton key={i} height={64} />
+        <Skeleton key={i} height={72} />
       ))}
     </View>
   );
@@ -146,7 +163,7 @@ const styles = StyleSheet.create({
   },
   loadingScreen: {
     flex: 1,
-    padding: spacing.xl,
+    paddingHorizontal: spacing.xl,
     gap: spacing.md,
     backgroundColor: colors.background,
   },

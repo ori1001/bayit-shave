@@ -75,3 +75,28 @@ export function colorForMember(memberId: string | null | undefined): string {
 export function tint(hex: string, alpha = '33'): string {
   return `${hex}${alpha}`;
 }
+
+function channel(hex: string, offset: number): number {
+  return parseInt(hex.slice(1 + offset * 2, 3 + offset * 2), 16);
+}
+
+/**
+ * An *opaque* mix of two colours.
+ *
+ * `tint` is translucent, so whatever sits behind shows through -- fine over a
+ * flat page, wrong for a card that has to stay lighter than the page it sits
+ * on. This returns a solid colour instead, so a barely-tinted white card still
+ * reads as white against the cream background rather than dissolving into it.
+ *
+ * `amount` is how much of `hex` to keep: 0 returns `base`, 1 returns `hex`.
+ */
+export function blend(hex: string, base: string, amount: number): string {
+  const to = (value: number) => Math.round(value).toString(16).padStart(2, '0');
+  const mixed = [0, 1, 2].map((i) => channel(base, i) + (channel(hex, i) - channel(base, i)) * amount);
+  return `#${mixed.map(to).join('')}`;
+}
+
+/** A card-safe wash of a colour: solid, and only a few percent off white. */
+export function wash(hex: string, amount = 0.06): string {
+  return blend(hex, colors.surface, amount);
+}

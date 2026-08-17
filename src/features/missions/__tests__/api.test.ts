@@ -12,16 +12,30 @@ import {
   getMonthMissions,
 } from '../api';
 import { supabase } from '../../../lib/supabase';
+import { clearSessionCaches } from '../../auth/session';
 
 jest.mock('../../../lib/supabase', () => ({
   supabase: {
     functions: { invoke: jest.fn() },
     from: jest.fn(),
     auth: {
-      getUser: jest.fn(),
+      getSession: jest.fn(),
+      onAuthStateChange: jest.fn(),
     },
   },
 }));
+
+const mockSession = (userId: string | null) =>
+  (supabase.auth.getSession as jest.Mock).mockResolvedValue({
+    data: { session: userId ? { user: { id: userId } } : null },
+    error: null,
+  });
+
+// The house id and membership are cached for the lifetime of a session, so each
+// case has to start from a cold cache or it reads the previous case's answer.
+beforeEach(() => {
+  clearSessionCaches();
+});
 
 describe('suggestMission', () => {
   it('invokes suggest-mission with the given input', async () => {
@@ -128,6 +142,7 @@ function mockSelectChain(finalResult: { data: unknown; error: unknown }) {
   const chain = {
     select: jest.fn().mockReturnThis(),
     eq: jest.fn().mockReturnThis(),
+    in: jest.fn().mockReturnThis(),
     neq: jest.fn().mockReturnThis(),
     gte: jest.fn().mockReturnThis(),
     lte: jest.fn().mockReturnThis(),
@@ -146,7 +161,9 @@ describe('getTodayMissions', () => {
     expect(supabase.from).toHaveBeenCalledWith('mission_instances');
     expect(chain.eq).toHaveBeenCalledWith('house_id', 'h1');
     expect(chain.eq).toHaveBeenCalledWith('assigned_to', 'mem1');
-    expect(chain.eq).toHaveBeenCalledWith('status', 'assigned');
+    // Done rows stay on the list for the rest of the day rather than vanishing
+    // the moment they are ticked off.
+    expect(chain.in).toHaveBeenCalledWith('status', ['assigned', 'done']);
     expect(result).toEqual([{ id: 'm1' }]);
   });
 });
@@ -167,10 +184,7 @@ describe('getMonthMissions', () => {
 
 describe('getMyMembership', () => {
   it('returns the member row for the current user in a house', async () => {
-    (supabase.auth.getUser as jest.Mock).mockResolvedValue({
-      data: { user: { id: 'user1' } },
-      error: null,
-    });
+    mockSession('user1');
     const chain = mockSelectChain({ data: { id: 'mem1', role: 'admin' }, error: null });
     (supabase.from as jest.Mock).mockReturnValue(chain);
     const result = await getMyMembership('h1');
@@ -179,6 +193,30 @@ describe('getMyMembership', () => {
     expect(chain.eq).toHaveBeenCalledWith('house_id', 'h1');
     expect(chain.eq).toHaveBeenCalledWith('user_id', 'user1');
     expect(result).toEqual({ id: 'mem1', role: 'admin' });
+  });
+
+  it('serves repeat calls from cache instead of re-querying', async () => {
+    mockSession('user1');
+    const chain = mockSelectChain({ data: { id: 'mem1', role: 'admin' }, error: null });
+    (supabase.from as jest.Mock).mockClear().mockReturnValue(chain);
+
+    await getMyMembership('h1');
+    await getMyMembership('h1');
+    await getMyMembership('h1');
+
+    // Three screens asking who I am used to mean three round trips each way.
+    expect((supabase.from as jest.Mock).mock.calls.filter(([table]) => table === 'members')).toHaveLength(1);
+  });
+
+  it('re-queries for a different house', async () => {
+    mockSession('user1');
+    const chain = mockSelectChain({ data: { id: 'mem1', role: 'admin' }, error: null });
+    (supabase.from as jest.Mock).mockClear().mockReturnValue(chain);
+
+    await getMyMembership('h1');
+    await getMyMembership('h2');
+
+    expect((supabase.from as jest.Mock).mock.calls.filter(([table]) => table === 'members')).toHaveLength(2);
   });
 });
 
@@ -200,7 +238,7 @@ describe('getSuggestions', () => {
 
 describe('getMyHouseId', () => {
   it("returns the house_id of the caller's membership row", async () => {
-    (supabase.auth.getUser as jest.Mock) = jest.fn().mockResolvedValue({ data: { user: { id: 'u1' } } });
+    mockSession('u1');
     const chain = mockSelectChain({ data: { house_id: 'h1' }, error: null });
     (supabase.from as jest.Mock).mockReturnValue(chain);
     const result = await getMyHouseId();
@@ -208,9 +246,30 @@ describe('getMyHouseId', () => {
   });
 
   it('returns null when there is no session', async () => {
-    (supabase.auth.getUser as jest.Mock) = jest.fn().mockResolvedValue({ data: { user: null } });
+    mockSession(null);
     const result = await getMyHouseId();
     expect(result).toBeNull();
+  });
+
+  it('does not cache "no house yet", so joining one is picked up in the same session', async () => {
+    mockSession('u1');
+    (supabase.from as jest.Mock).mockReturnValue(mockSelectChain({ data: null, error: null }));
+    await expect(getMyHouseId()).resolves.toBeNull();
+
+    // The user creates or joins a house without the app restarting.
+    (supabase.from as jest.Mock).mockReturnValue(mockSelectChain({ data: { house_id: 'h1' }, error: null }));
+    await expect(getMyHouseId()).resolves.toBe('h1');
+  });
+
+  it('reads the stored session rather than validating over the network', async () => {
+    mockSession('u1');
+    const chain = mockSelectChain({ data: { house_id: 'h1' }, error: null });
+    (supabase.from as jest.Mock).mockReturnValue(chain);
+    await getMyHouseId();
+    // getUser() is an HTTPS round trip per call and was the single biggest
+    // source of the delay after every tap.
+    expect((supabase.auth as unknown as Record<string, unknown>).getUser).toBeUndefined();
+    expect(supabase.auth.getSession).toHaveBeenCalled();
   });
 });
 

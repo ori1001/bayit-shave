@@ -196,7 +196,11 @@ password_requirements = ""
 
 [auth.rate_limit]
 # Number of emails that can be sent per hour. Requires auth.email.smtp to be enabled.
-email_sent = 2
+# Raised for local development only. GoTrue counts sign-ups against this even
+# with enable_confirmations off, and the default of 2 per hour means the third
+# account any test suite creates fails with "email rate limit exceeded" -- which
+# surfaces in the UI as a sign-up error and reads like a product bug.
+email_sent = 1000
 # Number of SMS messages that can be sent per hour. Requires auth.sms to be enabled.
 sms_sent = 30
 # Number of anonymous sign-ins that can be made per hour per IP address. Requires enable_anonymous_sign_ins = true.
@@ -204,7 +208,12 @@ anonymous_users = 30
 # Number of sessions that can be refreshed in a 5 minute interval per IP address.
 token_refresh = 150
 # Number of sign up and sign-in requests that can be made in a 5 minute interval per IP address (excludes anonymous users).
-sign_in_sign_ups = 30
+# Raised for local development only: every Edge Function test seeds a house by
+# signing up an admin and a member, so one pass over the suite creates ~90
+# accounts from one IP. At the default 30 the later tests -- and any Playwright
+# run started afterwards -- fail with "email rate limit exceeded", which looks
+# exactly like a product bug and is not one. Production keeps its own limits.
+sign_in_sign_ups = 300
 # Number of OTP / Magic link verifications that can be made in a 5 minute interval per IP address.
 token_verifications = 30
 # Number of Web3 logins that can be made in a 5 minute interval per IP address.

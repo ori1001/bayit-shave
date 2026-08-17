@@ -13,9 +13,13 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: 'missing_auth' }), { status: 401 });
   }
 
-  const { house_id, assignment_strategy, balance_period, balance_day, member_weights } = await req.json();
+  const { house_id, assignment_strategy, balance_period, balance_day, member_weights, new_admin_member_id } =
+    await req.json();
   if (!house_id) {
     return new Response(JSON.stringify({ error: 'house_id_required' }), { status: 400 });
+  }
+  if (new_admin_member_id !== undefined && typeof new_admin_member_id !== 'string') {
+    return new Response(JSON.stringify({ error: 'invalid_new_admin_member_id' }), { status: 400 });
   }
 
   if (assignment_strategy !== undefined && !ASSIGNMENT_STRATEGIES.includes(assignment_strategy)) {
@@ -101,6 +105,22 @@ Deno.serve(async (req) => {
       if (error) {
         return new Response(JSON.stringify({ error: 'member_weight_update_failed' }), { status: 500 });
       }
+    }
+  }
+
+  // Handing over admin is last: it demotes the caller, so anything else in this
+  // request has to have been authorised and applied while they still had the
+  // rights to make it.
+  if (new_admin_member_id) {
+    const { error } = await admin.rpc('transfer_house_admin', {
+      target_house_id: house_id,
+      new_admin_member_id,
+    });
+    if (error) {
+      return new Response(
+        JSON.stringify({ error: error.message.includes('member_not_in_house') ? 'member_not_in_house' : 'admin_transfer_failed' }),
+        { status: error.message.includes('member_not_in_house') ? 400 : 500 }
+      );
     }
   }
 

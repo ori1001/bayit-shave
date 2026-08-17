@@ -19,9 +19,20 @@ function safe(run: () => Promise<void>): void {
   });
 }
 
-/** Ordinary press. Deliberately Light -- Medium on every tap becomes noise. */
+/**
+ * Ordinary press.
+ *
+ * Light on iOS, where the Taptic Engine renders it clearly. Android's Light
+ * impact is a very short, very weak buzz that most phones render as nothing at
+ * all, so it gets Medium -- matching the *perceived* strength across platforms
+ * rather than the nominal one.
+ */
 export function tap(): void {
-  safe(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light));
+  safe(() =>
+    Haptics.impactAsync(
+      Platform.OS === 'android' ? Haptics.ImpactFeedbackStyle.Medium : Haptics.ImpactFeedbackStyle.Light
+    )
+  );
 }
 
 /** A decision with consequences: approving, rejecting, assigning. */

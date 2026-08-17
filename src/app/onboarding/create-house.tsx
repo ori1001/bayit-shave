@@ -2,21 +2,26 @@ import { useState } from 'react';
 import { View, TextInput, Text, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { createHouse } from '../../features/onboarding/api';
 import { AnimatedPressable } from '../../components/AnimatedPressable';
-import { colors, spacing, radii } from '../../theme';
+import { colors, spacing, radii, type, sectionColors, stateColors, tint } from '../../theme';
 
 export default function CreateHouseScreen() {
   const { t } = useTranslation();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [houseName, setHouseName] = useState('');
   const [adminName, setAdminName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  const padding = { paddingTop: insets.top + spacing.xl, paddingBottom: insets.bottom + spacing.xl };
+  const canSubmit = !submitting && !!houseName && !!adminName;
 
   async function handleSubmit() {
     setError(null);
@@ -44,9 +49,11 @@ export default function CreateHouseScreen() {
 
   if (inviteCode) {
     return (
-      <View style={styles.screen} testID="create-house-success">
+      <View style={[styles.screen, padding]} testID="create-house-success">
         <View style={styles.header}>
-          <Ionicons name="checkmark-circle" size={28} color={colors.sage} />
+          <View style={[styles.headerIcon, { backgroundColor: tint(stateColors.done, '1F') }]}>
+            <Ionicons name="checkmark-circle" size={26} color={stateColors.done} />
+          </View>
           <Text style={styles.title}>{t('onboarding.houseCreated')}</Text>
         </View>
         <Text style={styles.label}>{t('onboarding.shareCodeIntro')}</Text>
@@ -56,7 +63,7 @@ export default function CreateHouseScreen() {
           </Text>
         </View>
         <AnimatedPressable onPress={handleCopyCode} testID="copy-invite-code" style={styles.copyButton}>
-          <Ionicons name={copied ? 'checkmark-circle' : 'copy-outline'} size={18} color={colors.ink} />
+          <Ionicons name={copied ? 'checkmark-circle' : 'copy-outline'} size={20} color={colors.ink} />
           <Text style={styles.copyButtonText}>{t(copied ? 'onboarding.codeCopied' : 'onboarding.copyCode')}</Text>
         </AnimatedPressable>
         <AnimatedPressable onPress={() => router.replace('/')} testID="create-house-continue" style={styles.submitButton}>
@@ -67,9 +74,11 @@ export default function CreateHouseScreen() {
   }
 
   return (
-    <View style={styles.screen}>
+    <View style={[styles.screen, padding]}>
       <View style={styles.header}>
-        <Ionicons name="home-outline" size={28} color={colors.ink} />
+        <View style={[styles.headerIcon, { backgroundColor: tint(sectionColors.today, '24') }]}>
+          <Ionicons name="home-outline" size={24} color={colors.ink} />
+        </View>
         <Text style={styles.title}>{t('onboarding.createHouse')}</Text>
       </View>
       <Text style={styles.label}>{t('onboarding.houseNameLabel')}</Text>
@@ -83,9 +92,9 @@ export default function CreateHouseScreen() {
       )}
       <AnimatedPressable
         onPress={handleSubmit}
-        disabled={submitting || !houseName || !adminName}
+        disabled={!canSubmit}
         testID="create-house-submit"
-        style={styles.submitButton}
+        style={[styles.submitButton, !canSubmit && styles.buttonDisabled]}
       >
         <Text style={styles.submitButtonText}>{t('onboarding.submit')}</Text>
       </AnimatedPressable>
@@ -96,48 +105,61 @@ export default function CreateHouseScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    padding: spacing.xl,
+    paddingHorizontal: spacing.xl,
     justifyContent: 'center',
     gap: spacing.md,
     backgroundColor: colors.background,
+    width: '100%',
+    maxWidth: 480,
+    alignSelf: 'center',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: spacing.md,
     marginBottom: spacing.sm,
   },
+  headerIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: radii.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   title: {
-    fontSize: 22,
-    fontWeight: '800',
+    ...type.heading,
     color: colors.ink,
+    flex: 1,
   },
   label: {
+    ...type.label,
     color: colors.textMuted,
   },
   input: {
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radii.md,
-    padding: spacing.md,
+    paddingHorizontal: spacing.md,
+    minHeight: 52,
     backgroundColor: colors.surface,
+    ...type.body,
     color: colors.ink,
   },
   errorText: {
+    ...type.body,
     color: colors.rose,
   },
   codeBox: {
     borderWidth: 1.5,
-    borderColor: colors.ink,
-    borderRadius: radii.md,
+    borderColor: sectionColors.today,
+    borderRadius: radii.lg,
     padding: spacing.lg,
     alignItems: 'center',
-    backgroundColor: colors.surface,
+    backgroundColor: tint(sectionColors.today, '14'),
   },
   codeText: {
-    fontSize: 28,
-    fontWeight: '800',
-    letterSpacing: 4,
+    ...type.display,
+    letterSpacing: 6,
     color: colors.ink,
   },
   copyButton: {
@@ -148,20 +170,24 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: colors.ink,
     borderRadius: radii.lg,
-    padding: spacing.md,
+    minHeight: 52,
   },
   copyButtonText: {
+    ...type.bodyStrong,
     color: colors.ink,
-    fontWeight: '700',
   },
   submitButton: {
     backgroundColor: colors.ink,
     borderRadius: radii.lg,
-    padding: spacing.md,
+    minHeight: 52,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   submitButtonText: {
+    ...type.bodyStrong,
     color: colors.cream,
-    fontWeight: '700',
+  },
+  buttonDisabled: {
+    opacity: 0.5,
   },
 });

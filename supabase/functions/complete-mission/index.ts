@@ -86,31 +86,18 @@ Deno.serve(async (req) => {
   }
   const updated = updatedRows[0];
 
-  const { data: existingLedger } = await admin
-    .from('points_ledger')
-    .select('points_earned')
-    .eq('house_id', mission.house_id)
-    .eq('member_id', callerMember.id)
-    .maybeSingle();
-
-  if (existingLedger) {
-    const { error: ledgerError } = await admin
-      .from('points_ledger')
-      .update({ points_earned: existingLedger.points_earned + mission.points })
-      .eq('house_id', mission.house_id)
-      .eq('member_id', callerMember.id);
-    if (ledgerError) {
-      await admin.from('mission_instances').update({ status: 'assigned' }).eq('id', mission_instance_id);
-      return new Response(JSON.stringify({ error: 'ledger_update_failed' }), { status: 500 });
-    }
-  } else {
-    const { error: ledgerInsertError } = await admin
-      .from('points_ledger')
-      .insert({ house_id: mission.house_id, member_id: callerMember.id, points_earned: mission.points });
-    if (ledgerInsertError) {
-      await admin.from('mission_instances').update({ status: 'assigned' }).eq('id', mission_instance_id);
-      return new Response(JSON.stringify({ error: 'ledger_insert_failed' }), { status: 500 });
-    }
+  // One statement, so the increment is applied to whatever the row holds at
+  // write time. Reading points_earned here and writing back read + points --
+  // two round trips, as this used to do -- loses one member's points whenever
+  // two completions in the same house overlap.
+  const { error: ledgerError } = await admin.rpc('credit_points_earned', {
+    target_house_id: mission.house_id,
+    target_member_id: callerMember.id,
+    earned: mission.points,
+  });
+  if (ledgerError) {
+    await admin.from('mission_instances').update({ status: 'assigned' }).eq('id', mission_instance_id);
+    return new Response(JSON.stringify({ error: 'ledger_update_failed' }), { status: 500 });
   }
 
   return new Response(JSON.stringify({ mission: updated }), {

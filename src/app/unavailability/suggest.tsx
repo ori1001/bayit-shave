@@ -1,12 +1,14 @@
-import { useState } from 'react';
-import { View, Text, TextInput, StyleSheet } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Text, TextInput, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { suggestUnavailability } from '../../features/requests/api';
+import { getMyMembership } from '../../features/missions/api';
 import { AnimatedPressable } from '../../components/AnimatedPressable';
 import { DateRangeField } from '../../components/DatePicker';
-import { colors, spacing, radii } from '../../theme';
+import { Screen } from '../../components/Screen';
+import { colors, spacing, radii, type, sectionColors, ICONS } from '../../theme';
 
 export default function SuggestUnavailabilityScreen() {
   const { t } = useTranslation();
@@ -18,6 +20,18 @@ export default function SuggestUnavailabilityScreen() {
   const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    if (!houseId) {
+      return;
+    }
+    getMyMembership(houseId)
+      .then((membership) => setIsAdmin(membership?.role === 'admin'))
+      .catch(() => {});
+  }, [houseId]);
+
+  const canSubmit = !submitting && !!periodStart && !!periodEnd;
 
   async function handleSubmit() {
     setError(null);
@@ -33,12 +47,15 @@ export default function SuggestUnavailabilityScreen() {
   }
 
   return (
-    <View style={styles.screen}>
-      <View style={styles.header}>
-        <Ionicons name="airplane-outline" size={26} color={colors.violet} />
-        <Text style={styles.title}>{t('unavailability.title')}</Text>
-      </View>
-
+    <Screen
+      section="unavailability"
+      title={t('unavailability.title')}
+      icon={ICONS.unavailability}
+      tab="more"
+      houseId={houseId}
+      isAdmin={isAdmin}
+      scroll
+    >
       <Text style={styles.label}>{t('unavailability.periodStartLabel')}</Text>
       {/* One grid takes both ends: first tap sets the start, second the end. */}
       <DateRangeField
@@ -61,52 +78,54 @@ export default function SuggestUnavailabilityScreen() {
         </Text>
       )}
 
-      <AnimatedPressable onPress={handleSubmit} disabled={submitting || !periodStart || !periodEnd} testID="unavailability-submit" style={styles.submitButton}>
+      <AnimatedPressable
+        onPress={handleSubmit}
+        disabled={!canSubmit}
+        testID="unavailability-submit"
+        style={[styles.submitButton, !canSubmit && styles.buttonDisabled]}
+      >
+        <Ionicons name={ICONS.unavailability} size={20} color={colors.surface} />
         <Text style={styles.submitButtonText}>{t('unavailability.submit')}</Text>
       </AnimatedPressable>
-    </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    padding: spacing.xl,
-    gap: spacing.md,
-    backgroundColor: colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: colors.ink,
-  },
   label: {
+    ...type.label,
     color: colors.textMuted,
   },
   input: {
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radii.md,
-    padding: spacing.md,
+    paddingHorizontal: spacing.md,
+    minHeight: 52,
     backgroundColor: colors.surface,
+    ...type.body,
     color: colors.ink,
   },
   errorText: {
+    ...type.body,
     color: colors.rose,
   },
   submitButton: {
-    backgroundColor: colors.violet,
-    borderRadius: radii.lg,
-    padding: spacing.md,
+    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: sectionColors.unavailability,
+    borderRadius: radii.lg,
+    minHeight: 52,
+    marginTop: spacing.sm,
   },
   submitButtonText: {
-    color: colors.surface,
+    ...type.bodyStrong,
     fontWeight: '800',
+    color: colors.surface,
+  },
+  buttonDisabled: {
+    opacity: 0.5,
   },
 });

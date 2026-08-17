@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
+import { gotoSignIn } from './support/app';
 
 /**
  * A recorded end-to-end walkthrough of the normal user journey, used to
@@ -58,7 +59,7 @@ test('a household member sets up a house and works through a day', async ({ page
   const email = `demo-${Date.now()}@example.com`;
 
   // --- Sign up -------------------------------------------------------------
-  await page.goto('/');
+  await gotoSignIn(page);
   await expect(page.getByTestId('auth-email-input')).toBeVisible({ timeout: 60_000 });
   await beat(page);
 
@@ -101,15 +102,17 @@ test('a household member sets up a house and works through a day', async ({ page
   await beat(page, 400);
   await (await reveal(page, 'mission-points-input')).fill('15');
   await beat(page, 400);
-  await (await reveal(page, 'mission-due-date-input')).fill(today());
+  // The due date is picked from a month grid now, not typed as YYYY-MM-DD.
+  await tap(page, 'mission-due-date-input', 60_000);
+  await tap(page, `mission-due-date-input-grid-day-${new Date().getDate()}`, 60_000);
   await beat(page, 600);
   await tap(page, 'suggest-mission-submit', 60_000);
 
-  await reveal(page, 'today-balance');
+  await reveal(page, 'tab-balance');
   await beat(page, 1200);
 
   // --- Balance: run the assignment ----------------------------------------
-  await tap(page, 'today-balance');
+  await tap(page, 'tab-balance');
   await reveal(page, 'balance-house-summary', 60_000);
   await beat(page, 1600);
 
@@ -131,23 +134,28 @@ test('a household member sets up a house and works through a day', async ({ page
   }
 
   // --- Calendar ------------------------------------------------------------
-  await tap(page, 'today-calendar');
-  await reveal(page, 'calendar-next-month', 60_000);
+  await tap(page, 'tab-calendar');
+  await reveal(page, 'calendar-next', 60_000);
   await beat(page, 1400);
 
   const dayCell = page.locator('[data-testid^="calendar-day-"]:visible').first();
   await dayCell.scrollIntoViewIfNeeded();
   await dayCell.click();
   await beat(page, 1400);
-  await tap(page, 'calendar-next-month', 60_000);
+  await tap(page, 'calendar-next', 60_000);
   await beat(page, 1000);
-  await tap(page, 'calendar-prev-month', 60_000);
+  await tap(page, 'calendar-prev', 60_000);
   await beat(page, 1200);
 
   // --- Recurring chores ----------------------------------------------------
-  await page.goBack();
-  await tap(page, 'today-templates');
+  // Recurring chores and house settings live behind the "More" tab now, and
+  // the tab bar is on every screen, so there is nothing to go back from.
+  await tap(page, 'tab-more');
+  await tap(page, 'more-recurring', 60_000);
 
+  // The add form is a bottom sheet now, so it has to be opened before the
+  // fields it contains exist.
+  await tap(page, 'template-open-form', 60_000);
   await reveal(page, 'template-title-input', 60_000);
   await beat(page, 1200);
   await (await reveal(page, 'template-title-input')).fill('Take out the bins');
@@ -166,8 +174,8 @@ test('a household member sets up a house and works through a day', async ({ page
   await beat(page, 2000);
 
   // --- House settings ------------------------------------------------------
-  await page.goBack();
-  await tap(page, 'today-settings');
+  await tap(page, 'tab-more');
+  await tap(page, 'more-settings', 60_000);
 
   await reveal(page, 'strategy-points_based', 60_000);
   await beat(page, 1200);

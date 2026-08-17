@@ -3,7 +3,7 @@ import { supabase } from '../../../lib/supabase';
 
 jest.mock('../../../lib/supabase', () => {
   const builder: Record<string, jest.Mock> = {};
-  for (const method of ['select', 'eq', 'gte', 'lte']) {
+  for (const method of ['select', 'eq', 'in', 'gte', 'lte']) {
     builder[method] = jest.fn(() => builder);
   }
   builder.then = jest.fn((resolve: (v: unknown) => unknown) => resolve({ data: [], error: null }));

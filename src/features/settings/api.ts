@@ -24,6 +24,24 @@ export interface HouseSettingsUpdate {
   balance_period?: BalancePeriod;
   balance_day?: number;
   member_weights?: { member_id: string; weight: number }[];
+  /** Hands the house over. The caller becomes an ordinary member in the same step. */
+  new_admin_member_id?: string;
+}
+
+/**
+ * Makes another member the house admin, demoting the caller.
+ *
+ * A house has exactly one admin -- `houses.admin_id` is a single column -- so
+ * this is a handover, not a promotion. It goes through the same Edge Function
+ * as the rest of the house settings because the swap has to be authorised
+ * against the caller's *current* role, which the client cannot be trusted to
+ * report.
+ */
+export async function transferAdmin(
+  houseId: string,
+  newAdminMemberId: string
+): Promise<{ house: HouseSettings; members: MemberWeight[] }> {
+  return updateHouseSettings(houseId, { new_admin_member_id: newAdminMemberId });
 }
 
 export async function getHouseSettings(houseId: string): Promise<{ house: HouseSettings; members: MemberWeight[] }> {

@@ -54,7 +54,14 @@
     "calendar": "Calendar",
     "settings": "House settings",
     "templates": "Recurring chores",
-    "pendingSync": "{{count}} completion(s) waiting to sync"
+    "pendingSync": "{{count}} completion(s) waiting to sync",
+    "allDone": "All done for today",
+    "progress": "{{done}} of {{total}} done",
+    "pointsToday": "{{count}} pts",
+    "emptyTitle": "Nothing on your list today",
+    "emptyBody": "Enjoy it, or suggest a chore for the house.",
+    "doneTitle": "Everything is done",
+    "doneBody": "The whole list is ticked off. Nice one."
   },
   "missions": {
     "suggestTitle": "Suggest a mission",
@@ -93,7 +100,9 @@
     "unavailability": "Time-off request",
     "approve": "Approve",
     "reject": "Reject",
-    "reassignLabel": "Proposed new assignee"
+    "reassignLabel": "Proposed new assignee",
+    "emptyTitle": "Inbox is clear",
+    "emptyBody": "Suggestions, swaps and time-off requests land here."
   },
   "balance": {
     "title": "House Balance",
@@ -107,7 +116,9 @@
     "houseTotalEarned": "Total earned",
     "houseTotalTarget": "Total target",
     "houseBalanced": "The house is balanced",
-    "houseImbalanced": "Not balanced yet"
+    "houseImbalanced": "Not balanced yet",
+    "emptyTitle": "No one to balance yet",
+    "emptyBody": "Once housemates join, their share shows up here."
   },
   "swap": {
     "requestSwap": "Request swap",
@@ -142,11 +153,17 @@
     "suggestReassign": "Suggest a different person",
     "syncToDevice": "Add to my device calendar",
     "synced": "Synced {{count}} missions",
-    "syncUnavailable": "Calendar access is unavailable on this device"
+    "syncUnavailable": "Calendar access is unavailable on this device",
+    "pickDayTitle": "Pick a day",
+    "pickDayBody": "Tap a date to see what is planned for it.",
+    "emptyDayTitle": "Nothing on this day",
+    "emptyDayBody": "No chores are scheduled for this date.",
+    "missionsOnDay": "{{count}} chore(s)"
   },
   "common": {
     "loadError": "Could not load your data. Check your internet connection.",
-    "retry": "Try again"
+    "retry": "Try again",
+    "close": "Close"
   },
   "settings": {
     "title": "House settings",
@@ -162,7 +179,20 @@
     "weightHint": "A lower weight means a smaller share of the points target. Applies to future balance runs only.",
     "save": "Save settings",
     "saved": "Settings saved",
-    "adminOnly": "Only the house admin can change these settings."
+    "adminOnly": "Only the house admin can change these settings.",
+    "languageLabel": "Language",
+    "language_he": "עברית",
+    "language_en": "English",
+    "languageHint": "Picked from your region on first launch.",
+    "languageRestart": "Restart the app to finish switching the layout direction.",
+    "adminLabel": "House admin",
+    "adminHint": "The admin sets the rules and approves suggestions. Handing it over makes you an ordinary member.",
+    "currentAdmin": "Admin",
+    "makeAdmin": "Make admin",
+    "confirmTransfer": "Hand the house over to {{name}}? You will become an ordinary member.",
+    "confirmTransferYes": "Hand over",
+    "transferred": "{{name}} is now the house admin",
+    "transferError": "Could not hand over the house"
   },
   "templates": {
     "title": "Recurring chores",
@@ -181,7 +211,13 @@
     "empty": "No recurring chores yet",
     "adminOnly": "Only the house admin can manage recurring chores.",
     "everyWeekday": "Every {{day}}",
-    "everyMonthDay": "Monthly on day {{day}}"
+    "everyMonthDay": "Monthly on day {{day}}",
+    "emptyTitle": "No recurring chores yet",
+    "emptyBody": "Add one and the app will schedule it for you.",
+    "eligibleLabel": "Who can take this",
+    "eligibleEveryone": "Everyone",
+    "eligibleHint": "Restrict it to some of the house, or leave it open to all.",
+    "eligibleSummary": "Only {{names}}"
   },
   "tabs": {
     "today": "Today",
@@ -196,6 +232,7 @@
     "settings": "House settings",
     "timeOff": "Request time off",
     "suggestions": "Suggestions inbox",
-    "close": "Close"
+    "close": "Close",
+    "youAreAdmin": "Admin"
   }
 }

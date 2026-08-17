@@ -4,13 +4,15 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated';
 import { AnimatedPressable } from './AnimatedPressable';
-import { colors, spacing, radii, sectionColors, ICONS, tint } from '../theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { colors, spacing, radii, type, sectionColors, ICONS, tint } from '../theme';
 
 interface MoreSheetProps {
   visible: boolean;
   onClose: () => void;
   houseId: string;
-  isAdmin: boolean;
+  /** Shown as a badge. The destinations themselves are listed for everyone. */
+  isAdmin?: boolean;
 }
 
 /**
@@ -19,10 +21,16 @@ interface MoreSheetProps {
  * Slides up as a layer rather than replacing the screen — vertical motion means
  * "on top of", which keeps the mental model that you have not navigated away.
  */
-export function MoreSheet({ visible, onClose, houseId, isAdmin }: MoreSheetProps) {
+export function MoreSheet({ visible, onClose, houseId, isAdmin = false }: MoreSheetProps) {
   const { t } = useTranslation();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
+  // Everything is listed for everyone. Both screens already render a read-only
+  // view for a member (with a "the admin decides this" notice), but the entries
+  // were hidden unless isAdmin -- so a member could not see the house's rules at
+  // all, and an admin whose role had not loaded yet saw a sheet with one item in
+  // it and no way to reach their own settings. The screens do the gating.
   const items = [
     {
       key: 'timeOff',
@@ -31,24 +39,20 @@ export function MoreSheet({ visible, onClose, houseId, isAdmin }: MoreSheetProps
       label: t('more.timeOff'),
       go: () => router.push({ pathname: '/unavailability/suggest', params: { houseId } }),
     },
-    ...(isAdmin
-      ? [
-          {
-            key: 'recurring',
-            icon: ICONS.templates,
-            color: sectionColors.templates,
-            label: t('more.recurring'),
-            go: () => router.push({ pathname: '/missions/templates', params: { houseId } }),
-          },
-          {
-            key: 'settings',
-            icon: ICONS.settings,
-            color: sectionColors.settings,
-            label: t('more.settings'),
-            go: () => router.push({ pathname: '/settings', params: { houseId } }),
-          },
-        ]
-      : []),
+    {
+      key: 'recurring',
+      icon: ICONS.templates,
+      color: sectionColors.templates,
+      label: t('more.recurring'),
+      go: () => router.push({ pathname: '/missions/templates', params: { houseId } }),
+    },
+    {
+      key: 'settings',
+      icon: ICONS.settings,
+      color: sectionColors.settings,
+      label: t('more.settings'),
+      go: () => router.push({ pathname: '/settings', params: { houseId } }),
+    },
   ];
 
   return (
@@ -59,11 +63,21 @@ export function MoreSheet({ visible, onClose, houseId, isAdmin }: MoreSheetProps
       <Animated.View
         entering={SlideInDown.duration(280)}
         exiting={SlideOutDown.duration(220)}
-        style={styles.sheet}
+        style={[styles.sheet, { paddingBottom: insets.bottom + spacing.lg }]}
         testID="more-sheet"
       >
         <View style={styles.grabber} />
-        <Text style={styles.title}>{t('more.title')}</Text>
+        <View style={styles.titleRow}>
+          <Text style={styles.title}>{t('more.title')}</Text>
+          {/* Being the admin changes what half these screens let you do, and
+              nothing anywhere said whether you were one. */}
+          {isAdmin && (
+            <View style={styles.adminBadge} testID="more-admin-badge">
+              <Ionicons name={ICONS.admin} size={13} color={sectionColors.settings} />
+              <Text style={styles.adminBadgeText}>{t('more.youAreAdmin')}</Text>
+            </View>
+          )}
+        </View>
         {items.map((item) => (
           <AnimatedPressable
             key={item.key}
@@ -116,28 +130,46 @@ const styles = StyleSheet.create({
     backgroundColor: colors.border,
     marginBottom: spacing.sm,
   },
-  title: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: colors.ink,
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
     marginBottom: spacing.xs,
+  },
+  title: {
+    ...type.heading,
+    color: colors.ink,
+    flex: 1,
+  },
+  adminBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingVertical: 4,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radii.pill,
+    backgroundColor: tint(sectionColors.settings, '1F'),
+  },
+  adminBadgeText: {
+    ...type.caption,
+    fontWeight: '800',
+    color: sectionColors.settings,
   },
   item: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    paddingVertical: spacing.md,
+    minHeight: 56,
   },
   itemIcon: {
-    width: 36,
-    height: 36,
+    width: 42,
+    height: 42,
     borderRadius: radii.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
   itemLabel: {
-    fontWeight: '700',
+    ...type.subheading,
     color: colors.ink,
-    fontSize: 15,
   },
 });

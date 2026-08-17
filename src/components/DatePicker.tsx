@@ -1,101 +1,17 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { Text, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { AnimatedPressable } from './AnimatedPressable';
 import { BottomSheet } from './BottomSheet';
-import {
-  toISODate,
-  fromISODate,
-  daysInMonth,
-  firstWeekdayOfMonth,
-  isSameDay,
-  isBetween,
-  orderRange,
-  addMonths,
-} from '../lib/dates';
-import { colors, spacing, radii, sectionColors, ICONS, tint, chevronNext, chevronPrev } from '../theme';
-
-function localeOf(language: string): string {
-  return language?.startsWith('he') ? 'he-IL' : 'en-US';
-}
+import { MonthGrid, localeOf } from './MonthGrid';
+import { toISODate, fromISODate, orderRange, addMonths } from '../lib/dates';
+import { colors, spacing, radii, type, sectionColors, ICONS } from '../theme';
 
 function formatLong(iso: string, language: string): string {
   const date = fromISODate(iso);
   if (!date) return '';
   return date.toLocaleDateString(localeOf(language), { day: 'numeric', month: 'long', year: 'numeric' });
-}
-
-interface GridProps {
-  year: number;
-  month: number;
-  onMonth: (delta: number) => void;
-  selected: Date | null;
-  rangeEnd?: Date | null;
-  onPick: (date: Date) => void;
-  testID: string;
-}
-
-/** The shared month grid. Used by both the single and range fields. */
-function MonthGrid({ year, month, onMonth, selected, rangeEnd, onPick, testID }: GridProps) {
-  const { i18n } = useTranslation();
-  const locale = localeOf(i18n.language);
-
-  const total = daysInMonth(year, month);
-  const lead = firstWeekdayOfMonth(year, month);
-  const cells: (number | null)[] = [...Array(lead).fill(null), ...Array.from({ length: total }, (_, i) => i + 1)];
-
-  // Weekday initials in the active language, starting Sunday to match getDay().
-  const weekdays = Array.from({ length: 7 }, (_, i) =>
-    new Date(2026, 1, 1 + i).toLocaleDateString(locale, { weekday: 'narrow' })
-  );
-
-  const monthLabel = new Date(year, month - 1, 1).toLocaleDateString(locale, { month: 'long', year: 'numeric' });
-
-  return (
-    <View testID={testID}>
-      <View style={styles.navRow}>
-        <AnimatedPressable onPress={() => onMonth(-1)} testID={`${testID}-prev`} style={styles.navBtn}>
-          <Ionicons name={chevronPrev()} size={20} color={sectionColors.calendar} />
-        </AnimatedPressable>
-        <Text style={styles.monthLabel}>{monthLabel}</Text>
-        <AnimatedPressable onPress={() => onMonth(1)} testID={`${testID}-next`} style={styles.navBtn}>
-          <Ionicons name={chevronNext()} size={20} color={sectionColors.calendar} />
-        </AnimatedPressable>
-      </View>
-
-      <View style={styles.weekRow}>
-        {weekdays.map((day, i) => (
-          <Text key={i} style={styles.weekday}>
-            {day}
-          </Text>
-        ))}
-      </View>
-
-      <View style={styles.grid}>
-        {cells.map((day, index) => {
-          if (day === null) {
-            return <View key={`pad-${index}`} style={styles.cell} />;
-          }
-          const date = new Date(year, month - 1, day);
-          const isStart = isSameDay(date, selected);
-          const isEnd = isSameDay(date, rangeEnd ?? null);
-          const inRange = isBetween(date, selected, rangeEnd ?? null);
-
-          return (
-            <AnimatedPressable
-              key={day}
-              onPress={() => onPick(date)}
-              testID={`${testID}-day-${day}`}
-              style={[styles.cell, inRange && styles.cellInRange, (isStart || isEnd) && styles.cellSelected]}
-            >
-              <Text style={[styles.cellText, (isStart || isEnd) && styles.cellTextSelected]}>{day}</Text>
-            </AnimatedPressable>
-          );
-        })}
-      </View>
-    </View>
-  );
 }
 
 interface DateFieldProps {
@@ -113,7 +29,7 @@ interface DateFieldProps {
  * rather than validating them after the fact.
  */
 export function DateField({ value, onChange, label, testID }: DateFieldProps) {
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
   const [open, setOpen] = useState(false);
   const initial = fromISODate(value) ?? new Date();
   const [view, setView] = useState({ year: initial.getFullYear(), month: initial.getMonth() + 1 });
@@ -121,7 +37,7 @@ export function DateField({ value, onChange, label, testID }: DateFieldProps) {
   return (
     <>
       <AnimatedPressable onPress={() => setOpen(true)} testID={testID} style={styles.field}>
-        <Ionicons name={ICONS.calendar} size={18} color={sectionColors.calendar} />
+        <Ionicons name={ICONS.calendar} size={20} color={sectionColors.calendar} />
         <Text style={[styles.fieldText, !value && styles.fieldPlaceholder]}>
           {value ? formatLong(value, i18n.language) : label}
         </Text>
@@ -181,14 +97,12 @@ export function DateRangeField({ start, end, onChange, label, testID }: DateRang
   }
 
   const summary =
-    start && end
-      ? `${formatLong(start, i18n.language)} – ${formatLong(end, i18n.language)}`
-      : label;
+    start && end ? `${formatLong(start, i18n.language)} – ${formatLong(end, i18n.language)}` : label;
 
   return (
     <>
       <AnimatedPressable onPress={() => setOpen(true)} testID={testID} style={styles.field}>
-        <Ionicons name={ICONS.unavailability} size={18} color={sectionColors.unavailability} />
+        <Ionicons name={ICONS.unavailability} size={20} color={sectionColors.unavailability} />
         <Text style={[styles.fieldText, !(start && end) && styles.fieldPlaceholder]}>{summary}</Text>
       </AnimatedPressable>
 
@@ -208,6 +122,7 @@ export function DateRangeField({ start, end, onChange, label, testID }: DateRang
           selected={startDate}
           rangeEnd={endDate}
           onPick={handlePick}
+          tone={sectionColors.unavailability}
           testID={`${testID}-grid`}
         />
       </BottomSheet>
@@ -223,63 +138,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radii.md,
-    padding: spacing.md,
+    paddingHorizontal: spacing.md,
+    minHeight: 52,
     backgroundColor: colors.surface,
   },
   fieldText: {
+    ...type.body,
     color: colors.ink,
     flex: 1,
   },
   fieldPlaceholder: {
     color: colors.textMuted,
-  },
-  navRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.sm,
-  },
-  navBtn: {
-    padding: spacing.sm,
-  },
-  monthLabel: {
-    fontWeight: '800',
-    color: colors.ink,
-    fontSize: 15,
-  },
-  weekRow: {
-    flexDirection: 'row',
-  },
-  weekday: {
-    flex: 1,
-    textAlign: 'center',
-    fontSize: 11,
-    color: colors.textMuted,
-    fontWeight: '700',
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  cell: {
-    width: `${100 / 7}%`,
-    aspectRatio: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radii.sm,
-  },
-  cellInRange: {
-    backgroundColor: tint(sectionColors.calendar, '1A'),
-  },
-  cellSelected: {
-    backgroundColor: sectionColors.calendar,
-  },
-  cellText: {
-    color: colors.ink,
-    fontSize: 13,
-  },
-  cellTextSelected: {
-    color: colors.surface,
-    fontWeight: '800',
   },
 });

@@ -1,35 +1,30 @@
-import { useEffect, useState } from 'react';
-import { View, Text, TextInput, ScrollView, StyleSheet } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { View, Text, TextInput, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { getMyMembership, type MissionCategory } from '../../features/missions/api';
-import {
-  getTemplates,
-  createTemplate,
-  deleteTemplate,
-  generateRecurringMissions,
-  type MissionTemplate,
-} from '../../features/templates/api';
+import { type MissionCategory } from '../../features/missions/api';
+import { createTemplate, deleteTemplate, generateRecurringMissions } from '../../features/templates/api';
+import { fetchTemplates, templatesKey } from '../../features/tabs-data';
 import { AnimatedPressable } from '../../components/AnimatedPressable';
 import { Card } from '../../components/Card';
 import { CategoryIcon } from '../../components/CategoryIcon';
-import { LoadErrorView } from '../../components/LoadErrorView';
+import { EmptyState } from '../../components/EmptyState';
+import { useScreenData } from '../../lib/screen-data';
 import { describeRecurrence, weekdayName } from '../../lib/recurrence';
 import { BottomSheet } from '../../components/BottomSheet';
-import { LoadingScreen, FadeIn } from '../../components/Motion';
-import { colors, spacing, radii, MISSION_CATEGORIES } from '../../theme';
+import { Screen } from '../../components/Screen';
+import { FadeIn } from '../../components/Motion';
+import { colors, spacing, radii, type, sectionColors, ICONS, MISSION_CATEGORIES, CATEGORY_META, tint } from '../../theme';
 
 const WEEKDAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
+
+
 
 export default function TemplatesScreen() {
   const { t } = useTranslation();
   const { houseId } = useLocalSearchParams<{ houseId: string }>();
 
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [templates, setTemplates] = useState<MissionTemplate[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [generatedCount, setGeneratedCount] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
@@ -41,24 +36,16 @@ export default function TemplatesScreen() {
   const [frequency, setFrequency] = useState<'weekly' | 'monthly'>('weekly');
   const [weekday, setWeekday] = useState<(typeof WEEKDAYS)[number]>('fri');
   const [monthDay, setMonthDay] = useState('1');
+  // Empty means no restriction, which is what the column's NULL means too.
+  const [eligible, setEligible] = useState<string[]>([]);
 
-  async function load() {
-    setLoadError(null);
-    setLoading(true);
-    try {
-      const membership = await getMyMembership(houseId);
-      setIsAdmin(membership?.role === 'admin');
-      setTemplates(await getTemplates(houseId));
-    } catch (e) {
-      setLoadError(e instanceof Error ? e.message : null);
-    } finally {
-      setLoading(false);
-    }
-  }
+  const load = useCallback(() => fetchTemplates(houseId), [houseId]);
 
-  useEffect(() => {
-    load();
-  }, [houseId]);
+  const { data, fromCache, loading, error, refresh, update } = useScreenData(templatesKey(houseId), load);
+
+  const templates = useMemo(() => data?.templates ?? [], [data]);
+  const members = useMemo(() => data?.members ?? [], [data]);
+  const isAdmin = data?.isAdmin;
 
   async function handleAdd() {
     setFormError(null);
@@ -70,10 +57,14 @@ export default function TemplatesScreen() {
         category,
         points: Number(points),
         recurrence_rule: frequency === 'weekly' ? `weekly:${weekday}` : `monthly:${Number(monthDay)}`,
+        // Null, not an empty array: the balance run reads null as "anyone in
+        // the house", and an empty array would read the same but says less.
+        eligible_members: eligible.length > 0 ? eligible : null,
       });
       setTitle('');
+      setEligible([]);
       setFormOpen(false);
-      await load();
+      await refresh();
     } catch (e) {
       setFormError(e instanceof Error ? e.message : null);
     } finally {
@@ -83,12 +74,14 @@ export default function TemplatesScreen() {
 
   async function handleRemove(templateId: string) {
     setFormError(null);
+    // Gone from the list on tap; the request only confirms it.
+    update((current) => ({ ...current, templates: current.templates.filter((tpl) => tpl.id !== templateId) }));
     try {
       await deleteTemplate(houseId, templateId);
-      await load();
     } catch (e) {
       setFormError(e instanceof Error ? e.message : null);
     }
+    await refresh();
   }
 
   async function handleGenerate() {
@@ -105,54 +98,92 @@ export default function TemplatesScreen() {
     }
   }
 
-  if (loading) {
-    return <LoadingScreen />;
-  }
-
-  if (loadError !== null) {
-    return <LoadErrorView message={loadError} onRetry={load} testID="templates-load-error" />;
-  }
-
   return (
-    <ScrollView contentContainerStyle={styles.screen}>
-      <View style={styles.header}>
-        <Ionicons name="repeat-outline" size={26} color={colors.ink} />
-        <Text style={styles.title}>{t('templates.title')}</Text>
-      </View>
-
+    <Screen
+      section="templates"
+      title={t('templates.title')}
+      icon={ICONS.templates}
+      tab="more"
+      houseId={houseId}
+      isAdmin={isAdmin}
+      scroll
+      loading={loading}
+      error={error}
+      onRetry={refresh}
+      errorTestID="templates-load-error"
+    >
       {!isAdmin && (
-        <Text testID="templates-admin-only" style={styles.adminOnlyText}>
-          {t('templates.adminOnly')}
-        </Text>
+        <View style={styles.adminOnlyRow} testID="templates-admin-only">
+          <Ionicons name={ICONS.admin} size={18} color={colors.amber} />
+          <Text style={styles.adminOnlyText}>{t('templates.adminOnly')}</Text>
+        </View>
       )}
 
-      {templates.length === 0 && <Text style={styles.emptyText}>{t('templates.empty')}</Text>}
+      {templates.length === 0 ? (
+        <EmptyState
+          icon={ICONS.templates}
+          tone={sectionColors.templates}
+          title={t('templates.emptyTitle')}
+          body={t('templates.emptyBody')}
+          testID="templates-empty"
+        />
+      ) : (
+        templates.map((template, index) => {
+          const meta = CATEGORY_META[template.category] ?? CATEGORY_META.other;
+          return (
+            <FadeIn key={template.id} index={index} skip={fromCache}>
+              <Card
+                testID={`template-${template.id}`}
+                style={[styles.templateCard, { borderStartWidth: 4, borderStartColor: meta.color }]}
+              >
+                <CategoryIcon category={template.category} size={22} />
+                <View style={styles.templateBody}>
+                  <Text style={styles.templateTitle}>{template.title}</Text>
+                  <Text style={styles.templateMeta}>
+                    {describeRecurrence(template.recurrence_rule)} · {template.points}
+                  </Text>
+                  {template.eligible_members && template.eligible_members.length > 0 && (
+                    <Text style={styles.templateMeta} testID={`template-eligible-${template.id}`}>
+                      {t('templates.eligibleSummary', {
+                        names: template.eligible_members
+                          .map((id) => members.find((m) => m.id === id)?.name ?? '')
+                          .filter(Boolean)
+                          .join(', '),
+                      })}
+                    </Text>
+                  )}
+                </View>
+                {isAdmin && (
+                  <AnimatedPressable
+                    onPress={() => handleRemove(template.id)}
+                    testID={`template-remove-${template.id}`}
+                    accessibilityLabel={t('templates.remove')}
+                    style={styles.removeButton}
+                  >
+                    <Ionicons name={ICONS.remove} size={20} color={colors.rose} />
+                  </AnimatedPressable>
+                )}
+              </Card>
+            </FadeIn>
+          );
+        })
+      )}
 
-      {templates.map((template) => (
-        <Card key={template.id} testID={`template-${template.id}`} style={styles.templateCard}>
-          <CategoryIcon category={template.category} size={18} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.templateTitle}>{template.title}</Text>
-            <Text style={styles.templateMeta}>
-              {describeRecurrence(template.recurrence_rule)} · {template.points}
-            </Text>
-          </View>
-          {isAdmin && (
-            <AnimatedPressable
-              onPress={() => handleRemove(template.id)}
-              testID={`template-remove-${template.id}`}
-              accessibilityLabel={t('templates.remove')}
-            >
-              <Ionicons name="trash-outline" size={18} color={colors.rose} />
-            </AnimatedPressable>
-          )}
-        </Card>
-      ))}
+      {generatedCount !== null && (
+        <Text testID="templates-generated" style={styles.generatedText}>
+          {generatedCount > 0 ? t('templates.generated', { count: generatedCount }) : t('templates.generatedNone')}
+        </Text>
+      )}
+      {formError && (
+        <Text testID="templates-error" style={styles.errorText}>
+          {formError}
+        </Text>
+      )}
 
       {isAdmin && (
         <>
           <AnimatedPressable onPress={() => setFormOpen(true)} testID="template-open-form" style={styles.primaryButton}>
-            <Ionicons name="add-circle-outline" size={18} color={colors.cream} />
+            <Ionicons name={ICONS.add} size={20} color={colors.cream} />
             <Text style={styles.primaryButtonText}>{t('templates.addTitle')}</Text>
           </AnimatedPressable>
 
@@ -160,17 +191,11 @@ export default function TemplatesScreen() {
             onPress={handleGenerate}
             disabled={busy || templates.length === 0}
             testID="templates-generate"
-            style={styles.secondaryButton}
+            style={[styles.secondaryButton, (busy || templates.length === 0) && styles.buttonDisabled]}
           >
-            <Ionicons name="calendar-outline" size={18} color={colors.ink} />
+            <Ionicons name={ICONS.calendar} size={20} color={colors.ink} />
             <Text style={styles.secondaryButtonText}>{t('templates.generate')}</Text>
           </AnimatedPressable>
-
-          {generatedCount !== null && (
-            <Text testID="templates-generated" style={styles.generatedText}>
-              {generatedCount > 0 ? t('templates.generated', { count: generatedCount }) : t('templates.generatedNone')}
-            </Text>
-          )}
 
           <BottomSheet
             visible={formOpen}
@@ -178,169 +203,192 @@ export default function TemplatesScreen() {
             title={t('templates.addTitle')}
             testID="template-form-sheet"
           >
-          <Text style={styles.label}>{t('templates.titleLabel')}</Text>
-          <TextInput value={title} onChangeText={setTitle} testID="template-title-input" style={styles.input} />
+            <Text style={styles.label}>{t('templates.titleLabel')}</Text>
+            <TextInput value={title} onChangeText={setTitle} testID="template-title-input" style={styles.input} />
 
-          <Text style={styles.label}>{t('templates.pointsLabel')}</Text>
-          <TextInput
-            value={points}
-            onChangeText={setPoints}
-            keyboardType="numeric"
-            testID="template-points-input"
-            style={styles.input}
-          />
+            <Text style={styles.label}>{t('templates.pointsLabel')}</Text>
+            <TextInput
+              value={points}
+              onChangeText={setPoints}
+              keyboardType="numeric"
+              testID="template-points-input"
+              style={styles.input}
+            />
 
-          <Text style={styles.label}>{t('templates.categoryLabel')}</Text>
-          <View style={styles.chipRow}>
-            {MISSION_CATEGORIES.map((cat) => (
-              <AnimatedPressable
-                key={cat}
-                onPress={() => setCategory(cat)}
-                testID={`template-category-${cat}`}
-                style={[styles.chip, category === cat && styles.chipActive]}
-              >
-                <CategoryIcon category={cat} size={14} />
-                <Text style={[styles.chipText, category === cat && styles.chipTextActive]}>
-                  {t(`missions.categories.${cat}`)}
-                </Text>
-              </AnimatedPressable>
-            ))}
-          </View>
-
-          <Text style={styles.label}>{t('templates.recurrenceLabel')}</Text>
-          <View style={styles.chipRow}>
-            <AnimatedPressable
-              onPress={() => setFrequency('weekly')}
-              testID="template-frequency-weekly"
-              style={[styles.chip, frequency === 'weekly' && styles.chipActive]}
-            >
-              <Text style={[styles.chipText, frequency === 'weekly' && styles.chipTextActive]}>
-                {t('templates.weekly')}
-              </Text>
-            </AnimatedPressable>
-            <AnimatedPressable
-              onPress={() => setFrequency('monthly')}
-              testID="template-frequency-monthly"
-              style={[styles.chip, frequency === 'monthly' && styles.chipActive]}
-            >
-              <Text style={[styles.chipText, frequency === 'monthly' && styles.chipTextActive]}>
-                {t('templates.monthly')}
-              </Text>
-            </AnimatedPressable>
-          </View>
-
-          {frequency === 'weekly' ? (
+            <Text style={styles.label}>{t('templates.categoryLabel')}</Text>
             <View style={styles.chipRow}>
-              {WEEKDAYS.map((day, index) => (
+              {MISSION_CATEGORIES.map((cat) => {
+                const meta = CATEGORY_META[cat];
+                const active = category === cat;
+                return (
+                  <AnimatedPressable
+                    key={cat}
+                    onPress={() => setCategory(cat)}
+                    testID={`template-category-${cat}`}
+                    style={[
+                      styles.chip,
+                      { borderColor: active ? meta.color : colors.border },
+                      active && { backgroundColor: tint(meta.color, '1F') },
+                    ]}
+                  >
+                    <CategoryIcon category={cat} size={16} />
+                    <Text style={[styles.chipText, active && { color: meta.color, fontWeight: '800' }]}>
+                      {t(`missions.categories.${cat}`)}
+                    </Text>
+                  </AnimatedPressable>
+                );
+              })}
+            </View>
+
+            <Text style={styles.label}>{t('templates.recurrenceLabel')}</Text>
+            <View style={styles.segment}>
+              {(['weekly', 'monthly'] as const).map((option) => (
                 <AnimatedPressable
-                  key={day}
-                  onPress={() => setWeekday(day)}
-                  testID={`template-weekday-${day}`}
-                  style={[styles.dayChip, weekday === day && styles.chipActive]}
+                  key={option}
+                  onPress={() => setFrequency(option)}
+                  testID={`template-frequency-${option}`}
+                  style={[styles.segmentOption, frequency === option && styles.segmentOptionActive]}
                 >
-                  <Text style={[styles.chipText, weekday === day && styles.chipTextActive]}>
-                    {weekdayName(index, 'short')}
+                  <Text style={[styles.segmentText, frequency === option && styles.segmentTextActive]}>
+                    {t(`templates.${option}`)}
                   </Text>
                 </AnimatedPressable>
               ))}
             </View>
-          ) : (
-            <TextInput
-              value={monthDay}
-              onChangeText={setMonthDay}
-              keyboardType="numeric"
-              testID="template-month-day-input"
-              style={styles.input}
-            />
-          )}
 
-          {formError && (
-            <Text testID="templates-error" style={styles.errorText}>
-              {formError}
-            </Text>
-          )}
+            {frequency === 'weekly' ? (
+              <View style={styles.chipRow}>
+                {WEEKDAYS.map((day, index) => (
+                  <AnimatedPressable
+                    key={day}
+                    onPress={() => setWeekday(day)}
+                    testID={`template-weekday-${day}`}
+                    style={[styles.dayChip, weekday === day && styles.chipActive]}
+                  >
+                    <Text style={[styles.chipText, weekday === day && styles.chipTextActive]}>
+                      {weekdayName(index, 'short')}
+                    </Text>
+                  </AnimatedPressable>
+                ))}
+              </View>
+            ) : (
+              <TextInput
+                value={monthDay}
+                onChangeText={setMonthDay}
+                keyboardType="numeric"
+                testID="template-month-day-input"
+                style={styles.input}
+              />
+            )}
 
-          <AnimatedPressable
-            onPress={handleAdd}
-            disabled={busy || !title || !points}
-            testID="template-add"
-            style={styles.primaryButton}
-          >
-            <Ionicons name="add-circle-outline" size={18} color={colors.cream} />
-            <Text style={styles.primaryButtonText}>{t('templates.add')}</Text>
-          </AnimatedPressable>
+            <Text style={styles.label}>{t('templates.eligibleLabel')}</Text>
+            <Text style={styles.hint}>{t('templates.eligibleHint')}</Text>
+            <View style={styles.chipRow}>
+              <AnimatedPressable
+                onPress={() => setEligible([])}
+                testID="template-eligible-everyone"
+                accessibilityState={{ selected: eligible.length === 0 }}
+                style={[styles.chip, eligible.length === 0 && styles.chipActive]}
+              >
+                <Text style={[styles.chipText, eligible.length === 0 && styles.chipTextActive]}>
+                  {t('templates.eligibleEveryone')}
+                </Text>
+              </AnimatedPressable>
+              {members.map((m) => {
+                const picked = eligible.includes(m.id);
+                return (
+                  <AnimatedPressable
+                    key={m.id}
+                    onPress={() =>
+                      setEligible((current) =>
+                        current.includes(m.id) ? current.filter((id) => id !== m.id) : [...current, m.id]
+                      )
+                    }
+                    testID={`template-eligible-${m.id}`}
+                    accessibilityState={{ selected: picked }}
+                    style={[styles.chip, picked && styles.chipActive]}
+                  >
+                    <Text style={[styles.chipText, picked && styles.chipTextActive]}>{m.name}</Text>
+                  </AnimatedPressable>
+                );
+              })}
+            </View>
 
-          <AnimatedPressable
-            onPress={handleGenerate}
-            disabled={busy || templates.length === 0}
-            testID="templates-generate"
-            style={styles.secondaryButton}
-          >
-            <Ionicons name="calendar-outline" size={18} color={colors.ink} />
-            <Text style={styles.secondaryButtonText}>{t('templates.generate')}</Text>
-          </AnimatedPressable>
+            {formError && (
+              <Text testID="templates-form-error" style={styles.errorText}>
+                {formError}
+              </Text>
+            )}
 
-          {generatedCount !== null && (
-            <Text testID="templates-generated" style={styles.generatedText}>
-              {generatedCount > 0 ? t('templates.generated', { count: generatedCount }) : t('templates.generatedNone')}
-            </Text>
-          )}
+            <AnimatedPressable
+              onPress={handleAdd}
+              disabled={busy || !title || !points}
+              testID="template-add"
+              style={[styles.primaryButton, (busy || !title || !points) && styles.buttonDisabled]}
+            >
+              <Ionicons name={ICONS.add} size={20} color={colors.cream} />
+              <Text style={styles.primaryButtonText}>{t('templates.add')}</Text>
+            </AnimatedPressable>
           </BottomSheet>
         </>
       )}
-    </ScrollView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    padding: spacing.xl,
-    gap: spacing.md,
-    backgroundColor: colors.background,
+  label: {
+    ...type.label,
+    color: colors.textMuted,
   },
-  header: {
+  hint: {
+    ...type.caption,
+    color: colors.textMuted,
+  },
+  adminOnlyRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: colors.ink,
-  },
-  sectionTitle: {
-    fontWeight: '800',
-    color: colors.ink,
-    marginTop: spacing.lg,
-  },
-  label: {
-    color: colors.textMuted,
+    padding: spacing.md,
+    borderRadius: radii.md,
+    backgroundColor: tint(colors.amber, '1A'),
   },
   adminOnlyText: {
-    color: colors.amber,
-  },
-  emptyText: {
-    color: colors.textMuted,
+    ...type.caption,
+    color: colors.ink,
+    flex: 1,
   },
   templateCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
   },
+  templateBody: {
+    flex: 1,
+    gap: 2,
+  },
   templateTitle: {
-    fontWeight: '700',
+    ...type.bodyStrong,
     color: colors.ink,
   },
   templateMeta: {
-    fontSize: 12,
+    ...type.caption,
     color: colors.textMuted,
+  },
+  removeButton: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   input: {
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radii.md,
-    padding: spacing.md,
+    paddingHorizontal: spacing.md,
+    minHeight: 52,
     backgroundColor: colors.surface,
+    ...type.body,
     color: colors.ink,
   },
   chipRow: {
@@ -352,39 +400,66 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
-    borderRadius: radii.md,
+    minHeight: 44,
+    borderRadius: radii.pill,
     borderWidth: 1.5,
     borderColor: colors.border,
     backgroundColor: colors.surface,
   },
   dayChip: {
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: radii.md,
+    paddingHorizontal: spacing.sm,
+    minWidth: 48,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radii.pill,
     borderWidth: 1.5,
     borderColor: colors.border,
     backgroundColor: colors.surface,
-    minWidth: 44,
-    alignItems: 'center',
   },
   chipActive: {
-    borderColor: colors.ink,
-    backgroundColor: colors.ink,
+    borderColor: sectionColors.templates,
+    backgroundColor: sectionColors.templates,
   },
   chipText: {
-    color: colors.ink,
+    ...type.caption,
     fontWeight: '700',
-    fontSize: 12,
+    color: colors.ink,
   },
   chipTextActive: {
     color: colors.cream,
   },
+  segment: {
+    flexDirection: 'row',
+    backgroundColor: colors.border,
+    borderRadius: radii.pill,
+    padding: 3,
+  },
+  segmentOption: {
+    flex: 1,
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radii.pill,
+  },
+  segmentOptionActive: {
+    backgroundColor: colors.surface,
+  },
+  segmentText: {
+    ...type.label,
+    color: colors.textMuted,
+  },
+  segmentTextActive: {
+    color: colors.ink,
+    fontWeight: '800',
+  },
   errorText: {
+    ...type.body,
     color: colors.rose,
   },
   generatedText: {
+    ...type.body,
     color: colors.sage,
   },
   primaryButton: {
@@ -394,11 +469,11 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     backgroundColor: colors.ink,
     borderRadius: radii.lg,
-    padding: spacing.md,
+    minHeight: 52,
   },
   primaryButtonText: {
+    ...type.bodyStrong,
     color: colors.cream,
-    fontWeight: '700',
   },
   secondaryButton: {
     flexDirection: 'row',
@@ -408,10 +483,13 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: colors.ink,
     borderRadius: radii.lg,
-    padding: spacing.md,
+    minHeight: 52,
   },
   secondaryButtonText: {
+    ...type.bodyStrong,
     color: colors.ink,
-    fontWeight: '700',
+  },
+  buttonDisabled: {
+    opacity: 0.5,
   },
 });
